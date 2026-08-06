@@ -70,6 +70,16 @@ Globale Leiste: Titel, **Theme-Toggle** (☀/🌙/Auto), immer sichtbarer **„+
 - **Zeit** — Timer-Widget · manuelle Erfassung (`1:30`, `90m`, `1,5h`) · Einträge-Tabelle · Summen pro Projekt/Kunde/Woche · **CSV-Export** (de-AT, Semikolon, Dezimalkomma).
 - **Daten & Einstellungen** — Theme, „stille Kunde"-Schwelle, Backup-Intervall, **Backup export/import**, Beispieldaten, „alle Daten löschen".
 
+### Screenshots
+
+| Heute (dunkel) | Kundendetail (hell) |
+|---|---|
+| ![Dashboard](docs/screenshots/dashboard-dunkel.jpg) | ![Kundendetail](docs/screenshots/kundendetail-hell.jpg) |
+
+| Quick-Add mit Wiedervorlage | Zeit & Auswertung |
+|---|---|
+| ![Quick-Add](docs/screenshots/quick-add-hell.jpg) | ![Zeit](docs/screenshots/zeit-dunkel.jpg) |
+
 ---
 
 ## Datenmodell
@@ -122,10 +132,29 @@ Bei lokaler Datenhaltung ist Backup das A und O:
 
 ---
 
+## Tastatur
+
+Für den täglichen Gebrauch — die Kürzel greifen nicht, während in einem Eingabefeld getippt wird.
+
+| Taste | Wirkung |
+|---|---|
+| `n` | Neue Interaktion (Quick-Add) |
+| `/` | Fokus ins Suchfeld des aktuellen Screens |
+| `g` dann `h` / `k` / `p` / `f` / `z` / `d` | Heute / Kunden / Projekte / Follow-ups / Zeit / Daten |
+| `t` | Laufenden Timer stoppen bzw. Timer-Auswahl öffnen |
+| `⌘/Strg + Enter` | Formular abschicken |
+| `Esc` | Dialog schließen |
+| `?` | Übersicht aller Kürzel |
+
+---
+
 ## Roadmap
 
-**✅ Umgesetzt (M1 + M2)**
-Kunden & Kontakte · Interaktions-Timeline · Quick-Add-mit-Follow-up · Follow-ups · Quick-Links · Dashboard-Signale · Projekte & Aufgaben · Zeiterfassung (Timer + manuell) · CSV-Export · JSON-Backup · Dark/Light-Theme · Beispieldaten.
+**✅ Umgesetzt (v1.0)**
+Kunden & Kontakte · Interaktions-Timeline · Quick-Add-mit-Follow-up · Follow-ups · Quick-Links · Dashboard-Signale ·
+Projekte & Aufgaben · Zeiterfassung (Timer mit Reload-Recovery + manuell) · Auswertungen · CSV-Export ·
+JSON-Backup mit Ersetzen/Zusammenführen/Rückgängig · Backup-Erinnerung · Schema-Migrationen ·
+Multi-Tab-Schutz · Dark/Light/Auto-Theme · Tastatur-Kürzel · Beispieldaten.
 
 **🔜 Bewusst zurückgestellt** (Architektur lässt Platz, kein Rewrite nötig)
 - Angebote & Rechnungen (Erstellung, Status, PDF-Export)
@@ -157,9 +186,27 @@ Dann **http://localhost:8125** öffnen. Immer denselben Host+Port verwenden — 
 
 ```
 crm/
-├── index.html     # die gesamte App (HTML + CSS + JS)
-└── README.md      # dieses Dokument
+├── index.html          # die gesamte App (HTML + CSS + JS)
+└── TESTING.md          # manuelle QA-Checkliste
+docs/screenshots/       # Bilder für dieses Dokument
+README.md               # dieses Dokument
 ```
 
-Eine Datei. Mehr braucht es nicht.
+Die **App** ist eine Datei. Mehr braucht es nicht — alles andere ist Dokumentation
+und wird zum Betrieb nicht ausgeliefert.
 
+---
+
+## Bekannte Grenzen
+
+Bewusste Konsequenzen des Single-File-/Lokal-Prinzips:
+
+- **Kein Server, kein Multi-Device.** Die Daten leben in der IndexedDB *dieses* Browsers auf *diesem* Gerät.
+  Ein anderer Browser, ein anderer Rechner oder ein anderer Port zeigt „leere“ Daten.
+- **Backup liegt in deiner Verantwortung.** Es gibt keine Cloud, die im Hintergrund sichert.
+  Die Backup-Erinnerung am Dashboard ist der einzige Schutz — nimm sie ernst.
+- **Privater Modus / gelöschte Website-Daten löschen alles.** Auch „Browserdaten löschen“ im Browser trifft die App.
+- **`file://`-Quick-Links** lassen sich aus Sicherheitsgründen nicht per Klick öffnen; die App bietet stattdessen „Pfad kopieren“.
+- **Kein Konfliktabgleich zwischen Tabs.** Zwei offene Tabs arbeiten nach *last-write-wins*;
+  der zweite Tab lädt nach jedem fremden Save neu.
+- **Keine Volltextsuche über Interaktionstexte** — gesucht wird über Kunden, Firmen, Tags und Projektnamen.
