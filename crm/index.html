@@ -1,0 +1,3317 @@
+<!doctype html>
+<html lang="de" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Freelancer-CRM</title>
+<!-- Inline-Favicon: verhindert den automatischen /favicon.ico-Request. Keine externe Datei. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%87%3C/text%3E%3C/svg%3E">
+<script>
+  /* Theme vor dem ersten Paint setzen -> kein Umfaerben beim Laden.
+     Der echte Wert kommt spaeter aus meta.settings.theme; hier reicht der Spiegel im localStorage. */
+  (function () {
+    try {
+      var pref = localStorage.getItem('crm-theme') || 'auto';
+      var dark = pref === 'dark' || (pref === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    } catch (e) { /* localStorage kann blockiert sein - dann bleibt light */ }
+  })();
+</script>
+<style>
+/* ============================================================================
+   DESIGN-TOKENS
+   Light ist der Default, Dark wird ueber [data-theme="dark"] gesetzt.
+   'auto' wird in JS zu light/dark aufgeloest -> nur zwei Bloecke noetig.
+   ========================================================================= */
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #eef0f4;
+  --surface-3: #e4e7ec;
+  --border: #d8dce2;
+  --border-strong: #b9c0c9;
+  --text: #16191d;
+  --muted: #646d78;
+  --accent: #1f5fd6;
+  --accent-soft: #e5edfc;
+  --accent-fg: #ffffff;
+  --danger: #c62828;
+  --danger-soft: #fdecec;
+  --success: #1b7a3d;
+  --success-soft: #e6f4ea;
+  --warn: #a15c00;
+  --warn-soft: #fdf1dc;
+
+  --r-lg: 12px;
+  --r-md: 9px;
+  --r-sm: 6px;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 15px;
+  --fs-lg: 18px;
+  --fs-xl: 24px;
+
+  --shadow: 0 1px 2px rgba(16, 22, 30, .06), 0 6px 16px rgba(16, 22, 30, .06);
+  --shadow-lg: 0 8px 40px rgba(16, 22, 30, .22);
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --topbar-h: 52px;
+}
+
+:root[data-theme="dark"] {
+  --bg: #14171b;
+  --surface: #1c2025;
+  --surface-2: #23282e;
+  --surface-3: #2c323a;
+  --border: #333a42;
+  --border-strong: #4a525c;
+  --text: #e8eaed;
+  --muted: #9aa4b0;
+  --accent: #6f9dff;
+  --accent-soft: #1e2a40;
+  --accent-fg: #0d1117;
+  --danger: #ef6a6a;
+  --danger-soft: #35201f;
+  --success: #6fcf8b;
+  --success-soft: #1b2c21;
+  --warn: #e0a458;
+  --warn-soft: #2f2618;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 6px 16px rgba(0, 0, 0, .3);
+  --shadow-lg: 0 8px 40px rgba(0, 0, 0, .55);
+}
+
+/* ============================================================================
+   RESET & BASIS
+   ========================================================================= */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: var(--fs-md);
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-text-size-adjust: 100%;
+  overflow-wrap: anywhere;
+}
+h1, h2, h3, h4 { margin: 0; font-weight: 600; line-height: 1.25; }
+h1 { font-size: var(--fs-xl); }
+h2 { font-size: var(--fs-lg); }
+h3 { font-size: var(--fs-md); }
+p { margin: 0 0 var(--sp-2); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+ul { margin: 0; padding: 0; list-style: none; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-sm); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* ============================================================================
+   TOPBAR + NAVIGATION
+   ========================================================================= */
+.topbar {
+  position: sticky; top: 0; z-index: 40;
+  display: flex; align-items: center; gap: var(--sp-2);
+  height: var(--topbar-h);
+  padding: 0 var(--sp-3);
+  padding-top: env(safe-area-inset-top);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.topbar__title {
+  flex: 0 1 auto; min-width: 0;
+  font-size: var(--fs-md); font-weight: 700; letter-spacing: -.01em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.topbar__spacer { flex: 1 1 0; min-width: 0; }
+@media (max-width: 400px) {
+  .topbar { gap: var(--sp-1); padding: 0 var(--sp-2); }
+  .topbar__title { font-size: var(--fs-sm); }
+}
+
+.nav {
+  position: sticky; top: var(--topbar-h); z-index: 30;
+  display: flex; gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.nav::-webkit-scrollbar { display: none; }
+.nav__item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  color: var(--muted); font-size: var(--fs-sm); font-weight: 500;
+  white-space: nowrap;
+}
+.nav__item:hover { background: var(--surface-2); text-decoration: none; }
+.nav__item[aria-current="page"] { background: var(--accent-soft); color: var(--accent); }
+.nav__icon { font-size: 15px; }
+
+main {
+  display: block;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: var(--sp-5) var(--sp-4) var(--sp-6);
+}
+
+@media (max-width: 767px) {
+  .nav {
+    position: fixed; top: auto; bottom: 0; left: 0; right: 0;
+    justify-content: space-between;
+    gap: 0;
+    padding: var(--sp-1) var(--sp-2);
+    padding-bottom: calc(var(--sp-1) + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border); border-bottom: none;
+    overflow: visible;
+  }
+  .nav__item {
+    flex: 1 1 0; flex-direction: column; gap: 2px;
+    min-width: 0; min-height: 46px;
+    padding: 4px 2px;
+    border-radius: var(--r-sm);
+    font-size: 10px;
+  }
+  .nav__icon { font-size: 17px; }
+  .nav__label { overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  main { padding: var(--sp-4) var(--sp-3) 96px; }
+}
+
+/* ============================================================================
+   BUTTONS, EINGABEN, CHIPS
+   ========================================================================= */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit; font-size: var(--fs-sm); font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--surface-2); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn--primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.btn--primary:hover { filter: brightness(1.08); }
+.btn--danger { color: var(--danger); border-color: var(--border); }
+.btn--danger:hover { background: var(--danger-soft); }
+.btn--ghost { border-color: transparent; background: transparent; color: var(--muted); }
+.btn--ghost:hover { background: var(--surface-2); color: var(--text); }
+.btn--sm { min-height: 28px; padding: 3px 9px; font-size: var(--fs-xs); }
+.btn--icon { min-width: 34px; padding: 6px; }
+.btn--block { width: 100%; }
+
+.field { display: block; margin-bottom: var(--sp-3); }
+.field__label { display: block; margin-bottom: 4px; font-size: var(--fs-sm); font-weight: 500; color: var(--muted); }
+.input, .select, .textarea {
+  display: block; width: 100%;
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px; /* verhindert iOS-Zoom beim Fokus */
+}
+@media (min-width: 768px) { .input, .select, .textarea { font-size: var(--fs-md); } }
+.textarea { min-height: 84px; resize: vertical; }
+.input:focus, .select:focus, .textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+.input[aria-invalid="true"], .select[aria-invalid="true"], .textarea[aria-invalid="true"] { border-color: var(--danger); }
+.field__error { display: block; margin-top: 3px; font-size: var(--fs-xs); color: var(--danger); }
+.field__hint { display: block; margin-top: 3px; font-size: var(--fs-xs); color: var(--muted); }
+.field-row { display: flex; gap: var(--sp-3); flex-wrap: wrap; }
+.field-row > .field { flex: 1 1 160px; margin-bottom: var(--sp-3); }
+.check { display: flex; align-items: center; gap: 8px; font-size: var(--fs-sm); cursor: pointer; }
+.check input { width: 17px; height: 17px; accent-color: var(--accent); }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--surface-2); color: var(--muted);
+  font-size: var(--fs-xs); font-weight: 600; white-space: nowrap;
+}
+.badge--accent { background: var(--accent-soft); color: var(--accent); }
+.badge--danger { background: var(--danger-soft); color: var(--danger); }
+.badge--success { background: var(--success-soft); color: var(--success); }
+.badge--warn { background: var(--warn-soft); color: var(--warn); }
+.chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  min-height: 30px; padding: 4px 11px;
+  border: 1px solid var(--border-strong); border-radius: 999px;
+  background: var(--surface); color: var(--text);
+  font: inherit; font-size: var(--fs-xs); font-weight: 500; cursor: pointer;
+}
+.chip:hover { background: var(--surface-2); }
+.chip[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.chip-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+
+/* ============================================================================
+   KARTEN, LISTEN, TIMELINE, TABELLEN
+   ========================================================================= */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow);
+  margin-bottom: var(--sp-4);
+  overflow: hidden;
+}
+.card__head {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border);
+}
+.card__head h2, .card__head h3 { font-size: var(--fs-md); }
+.card__head--plain { border-bottom: none; padding-bottom: 0; }
+.card__spacer { flex: 1; }
+.card__body { padding: var(--sp-4); }
+.card__body--flush { padding: 0; }
+
+.grid-2 { display: grid; grid-template-columns: 1fr; gap: 0 var(--sp-4); }
+.grid-2 > * { min-width: 0; } /* ohne das sprengen breite Tabellen das Raster */
+@media (min-width: 900px) { .grid-2 { grid-template-columns: 1fr 1fr; align-items: start; } }
+
+.list__item {
+  display: flex; align-items: flex-start; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border);
+}
+.list__item:last-child { border-bottom: none; }
+.list__item:hover { background: var(--surface-2); }
+.list__main { flex: 1; min-width: 0; }
+.list__title { font-weight: 600; font-size: var(--fs-md); }
+.list__meta { color: var(--muted); font-size: var(--fs-sm); }
+.list__actions { display: flex; gap: var(--sp-1); flex-shrink: 0; }
+.row { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.row--tight { gap: var(--sp-1); }
+.stack > * + * { margin-top: var(--sp-2); }
+.muted { color: var(--muted); }
+.small { font-size: var(--fs-sm); }
+.xsmall { font-size: var(--fs-xs); }
+.strong { font-weight: 600; }
+.right { margin-left: auto; }
+.nowrap { white-space: nowrap; }
+.mono { font-family: var(--mono); font-size: var(--fs-sm); }
+.pre-wrap { white-space: pre-wrap; }
+.done-text { text-decoration: line-through; color: var(--muted); }
+
+.timeline__month {
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--surface-2);
+  font-size: var(--fs-xs); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+.timeline__icon { font-size: 17px; line-height: 1.4; flex-shrink: 0; width: 22px; text-align: center; }
+
+.empty { padding: var(--sp-5) var(--sp-4); text-align: center; color: var(--muted); }
+.empty__icon { font-size: 30px; }
+.empty__text { margin: var(--sp-2) 0 var(--sp-3); font-size: var(--fs-sm); }
+
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table.data { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+table.data th, table.data td { padding: 8px var(--sp-3); text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+table.data th { color: var(--muted); font-size: var(--fs-xs); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+table.data td.wrap { white-space: normal; min-width: 160px; }
+table.data tr:last-child td { border-bottom: none; }
+table.data td.num, table.data th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.stat-row { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
+.stat { flex: 1 1 130px; padding: var(--sp-3); border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-2); }
+.stat__value { font-size: var(--fs-xl); font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat__label { font-size: var(--fs-xs); color: var(--muted); }
+
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.banner {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-4);
+  border: 1px solid var(--border); border-left: 3px solid var(--warn);
+  border-radius: var(--r-md);
+  background: var(--warn-soft);
+  font-size: var(--fs-sm);
+}
+.banner--info { border-left-color: var(--accent); background: var(--accent-soft); }
+.banner--danger { border-left-color: var(--danger); background: var(--danger-soft); }
+.page-head { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-4); }
+.page-head h1 { flex: 1 1 auto; min-width: 0; }
+.section-title { margin: var(--sp-5) 0 var(--sp-2); font-size: var(--fs-sm); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.section-title:first-child { margin-top: 0; }
+
+/* ============================================================================
+   TIMER-CHIP
+   ========================================================================= */
+.timer-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  max-width: 46vw;
+  padding: 4px 10px;
+  border: 1px solid var(--success); border-radius: 999px;
+  background: var(--success-soft); color: var(--success);
+  font-size: var(--fs-xs); font-weight: 600;
+  cursor: pointer;
+}
+.timer-chip__time { font-variant-numeric: tabular-nums; }
+.timer-chip__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 520px) { .timer-chip__name { display: none; } }
+
+/* ============================================================================
+   MODAL
+   ========================================================================= */
+.overlay {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--sp-4);
+  background: rgba(10, 13, 18, .5);
+  -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+}
+.modal {
+  display: flex; flex-direction: column;
+  width: min(560px, 100%);
+  max-height: min(88vh, 780px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+}
+.modal--wide { width: min(760px, 100%); }
+.modal__head {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border);
+}
+.modal__title { flex: 1; font-size: var(--fs-md); font-weight: 700; }
+.modal__body { flex: 1; overflow-y: auto; padding: var(--sp-4); -webkit-overflow-scrolling: touch; }
+.modal__foot {
+  display: flex; gap: var(--sp-2); justify-content: flex-end;
+  padding: var(--sp-3) var(--sp-4);
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+}
+@media (max-width: 640px) {
+  .overlay { align-items: flex-end; padding: 0; }
+  .modal {
+    width: 100%; max-height: 92vh;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    border-bottom: none;
+  }
+  .modal__foot { padding-bottom: calc(var(--sp-3) + env(safe-area-inset-bottom)); }
+  .modal__foot .btn { flex: 1 1 0; }
+}
+
+/* ============================================================================
+   TOASTS
+   ========================================================================= */
+.toasts {
+  position: fixed; z-index: 80;
+  left: 50%; transform: translateX(-50%);
+  bottom: calc(env(safe-area-inset-bottom) + 70px);
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  width: min(420px, calc(100vw - 24px));
+}
+@media (min-width: 768px) { .toasts { bottom: 20px; } }
+.toast {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: 10px var(--sp-3);
+  border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  font-size: var(--fs-sm);
+}
+.toast--success { border-left-color: var(--success); }
+.toast--error { border-left-color: var(--danger); }
+.toast__text { flex: 1; min-width: 0; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <span class="topbar__title">📇 Freelancer-CRM</span>
+  <span class="topbar__spacer"></span>
+  <span id="timer-slot"></span>
+  <button class="btn btn--primary btn--sm" data-action="quickadd:open" title="Neue Interaktion (n)">+ Interaktion</button>
+  <button class="btn btn--ghost btn--icon btn--sm" data-action="theme:cycle" id="theme-btn" title="Theme wechseln" aria-label="Theme wechseln">☀</button>
+</header>
+<nav class="nav" id="nav" aria-label="Hauptnavigation"></nav>
+<main id="app" tabindex="-1"></main>
+<div id="modal-root"></div>
+<div class="toasts" id="toast-root"></div>
+<div class="sr-only" id="live-polite" role="status" aria-live="polite"></div>
+<div class="sr-only" id="live-assertive" role="alert" aria-live="assertive"></div>
+<script>
+'use strict';
+/* ============================================================================
+   KONSTANTEN / ENUMS
+   ========================================================================= */
+const SCHEMA_VERSION = 1;
+const DB_NAME = 'freelancer-crm';
+const DB_STORE = 'doc';
+const DB_KEY = 'root';
+const PERSIST_DEBOUNCE_MS = 400;
+const THEME_MIRROR_KEY = 'crm-theme';
+const LOCALE = 'de-AT';
+
+const CLIENT_STATUS = {
+  active:   { label: 'Aktiv',      badge: 'badge--success' },
+  lead:     { label: 'Lead',       badge: 'badge--accent' },
+  paused:   { label: 'Pausiert',   badge: 'badge--warn' },
+  archived: { label: 'Archiviert', badge: '' }
+};
+const INTERACTION_TYPE = {
+  call:    { label: 'Anruf',     icon: '📞' },
+  email:   { label: 'E-Mail',    icon: '✉️' },
+  meeting: { label: 'Meeting',   icon: '🤝' },
+  note:    { label: 'Notiz',     icon: '📝' },
+  message: { label: 'Nachricht', icon: '💬' }
+};
+const DIRECTION = {
+  in:       { label: 'Eingehend', icon: '↙' },
+  out:      { label: 'Ausgehend', icon: '↗' },
+  internal: { label: 'Intern',    icon: '•' }
+};
+const FOLLOWUP_STATUS = { open: 'Offen', done: 'Erledigt' };
+const PROJECT_STATUS = {
+  active:   { label: 'Aktiv',      badge: 'badge--success' },
+  onhold:   { label: 'Pausiert',   badge: 'badge--warn' },
+  done:     { label: 'Fertig',     badge: 'badge--accent' },
+  archived: { label: 'Archiviert', badge: '' }
+};
+const TASK_STATUS = {
+  todo:  { label: 'Offen',      icon: '○' },
+  doing: { label: 'In Arbeit',  icon: '◐' },
+  done:  { label: 'Erledigt',   icon: '●' }
+};
+const TASK_CYCLE = { todo: 'doing', doing: 'done', done: 'todo' };
+const LINK_KIND = {
+  note:   { label: 'Notiz',   icon: '🗒' },
+  repo:   { label: 'Repo',    icon: '🐙' },
+  ticket: { label: 'Ticket',  icon: '🎫' },
+  docs:   { label: 'Doku',    icon: '📚' },
+  design: { label: 'Design',  icon: '🎨' },
+  folder: { label: 'Ordner',  icon: '📁' },
+  mail:   { label: 'Mail',    icon: '✉️' },
+  web:    { label: 'Web',     icon: '🔗' }
+};
+const PROJECT_COLORS = ['#1f5fd6', '#0f8a6a', '#b4531f', '#7b3fbf', '#c0392b', '#0f7b9c', '#8a6d1f', '#4a5568'];
+const NAV_ITEMS = [
+  { route: 'today',     hash: '#/today',     icon: '📅', label: 'Heute',      key: 'h' },
+  { route: 'clients',   hash: '#/clients',   icon: '👥', label: 'Kunden',     key: 'k' },
+  { route: 'projects',  hash: '#/projects',  icon: '📦', label: 'Projekte',   key: 'p' },
+  { route: 'followups', hash: '#/followups', icon: '🔔', label: 'Follow-ups', key: 'f' },
+  { route: 'time',      hash: '#/time',      icon: '⏱',  label: 'Zeit',       key: 'z' },
+  { route: 'settings',  hash: '#/settings',  icon: '⚙️', label: 'Daten',      key: 'd' }
+];
+const TIMELINE_PAGE = 20;
+const TIMER_MAX_HOURS = 12;
+
+/* ============================================================================
+   STATE
+   Ein einziges Objekt: data (das Wurzel-Dokument), route (aktuelle Ansicht)
+   und ui (fluechtiger Oberflaechenzustand, wird nie persistiert).
+   ========================================================================= */
+const state = {
+  data: null,
+  route: { name: 'today', id: null, query: {} },
+  ui: {
+    booted: false,
+    storageWarning: null,
+    clientSearch: '', clientStatus: 'all', clientStale: 'all',
+    projectSearch: '', projectStatus: 'open',
+    followupStatus: 'open', followupWhen: 'all', followupClient: 'all',
+    timeRange: 'week', timeFrom: '', timeTo: '',
+    timelineType: 'all', timelineLimit: TIMELINE_PAGE,
+    showDoneTasks: false,
+    backupHintDismissed: false,
+    externalChangePending: false,
+    modal: null,
+    undo: null
+  }
+};
+let bc = null;          /* BroadcastChannel */
+let dbHandle = null;    /* offene IndexedDB-Verbindung, null = nur In-Memory */
+const TAB_ID = Math.random().toString(36).slice(2) + '-' + performance.now().toString(36);
+
+/* ============================================================================
+   DB-LAYER (IndexedDB)
+   Ein Object-Store, ein Key, das gesamte Dokument als ein JSON-Blob.
+   Die Datenmenge ist winzig -> in-memory halten, "Queries" sind filter/sort.
+   ========================================================================= */
+function openDb() {
+  return new Promise((resolve, reject) => {
+    if (!('indexedDB' in window)) { reject(new Error('IndexedDB ist in diesem Browser nicht verfügbar.')); return; }
+    let req;
+    try { req = indexedDB.open(DB_NAME, 1); }
+    catch (err) { reject(err); return; }
+    req.onupgradeneeded = () => { req.result.createObjectStore(DB_STORE); };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error || new Error('IndexedDB konnte nicht geöffnet werden.'));
+    req.onblocked = () => reject(new Error('IndexedDB ist durch einen anderen Tab blockiert.'));
+  });
+}
+
+function dbGet() {
+  return new Promise((resolve, reject) => {
+    if (!dbHandle) { resolve(null); return; }
+    const tx = dbHandle.transaction(DB_STORE, 'readonly');
+    const req = tx.objectStore(DB_STORE).get(DB_KEY);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbPut(doc) {
+  return new Promise((resolve, reject) => {
+    if (!dbHandle) { resolve(false); return; }
+    const tx = dbHandle.transaction(DB_STORE, 'readwrite');
+    tx.objectStore(DB_STORE).put(doc, DB_KEY);
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error('Schreibvorgang abgebrochen.'));
+  });
+}
+
+/* ============================================================================
+   DATENMODELL & MIGRATIONEN
+   ========================================================================= */
+const ENTITY_ARRAYS = ['clients', 'contacts', 'links', 'interactions', 'followups', 'projects', 'tasks', 'timeEntries'];
+
+function emptyDoc() {
+  const now = new Date().toISOString();
+  return {
+    clients: [], contacts: [], links: [], interactions: [],
+    followups: [], projects: [], tasks: [], timeEntries: [],
+    meta: {
+      schemaVersion: SCHEMA_VERSION,
+      createdAt: now,
+      updatedAt: now,
+      lastBackupAt: null,
+      activeTimer: null,
+      settings: { theme: 'auto', staleDays: 21, backupIntervalDays: 7 }
+    }
+  };
+}
+
+function docVersion(doc) {
+  if (!doc) return 0;
+  if (doc.meta && typeof doc.meta.schemaVersion === 'number') return doc.meta.schemaVersion;
+  if (typeof doc.schemaVersion === 'number') return doc.schemaVersion;
+  return 1;
+}
+
+/* Schrittweise Migrationen v(n) -> v(n+1). Neue Entitaets-Arrays kommen hier
+   mit leerem Default dazu; bestehende Daten brechen dadurch nie. */
+const MIGRATIONS = {
+  /* Beispiel fuer die naechste Version:
+     2: function (doc) { doc.invoices = doc.invoices || []; return doc; } */
+};
+
+function migrate(raw) {
+  const doc = raw ? JSON.parse(JSON.stringify(raw)) : emptyDoc();
+  let version = docVersion(doc);
+  if (version > SCHEMA_VERSION) {
+    throw new Error('Diese Datei stammt aus einer neueren Version (Schema ' + version +
+      '). Bitte zuerst die App aktualisieren — die Daten werden nicht verändert.');
+  }
+  while (version < SCHEMA_VERSION) {
+    const step = MIGRATIONS[version + 1];
+    if (step) step(doc);
+    version += 1;
+  }
+  /* Struktur-Defaults auffuellen: fehlende Arrays und meta-Felder ergaenzen. */
+  const base = emptyDoc();
+  ENTITY_ARRAYS.forEach(key => { if (!Array.isArray(doc[key])) doc[key] = []; });
+  doc.meta = Object.assign({}, base.meta, doc.meta || {});
+  doc.meta.settings = Object.assign({}, base.meta.settings, doc.meta.settings || {});
+  doc.meta.schemaVersion = SCHEMA_VERSION;
+  delete doc.schemaVersion;
+  const s = doc.meta.settings;
+  if (!['auto', 'light', 'dark'].includes(s.theme)) s.theme = 'auto';
+  s.staleDays = clampInt(s.staleDays, 1, 3650, 21);
+  s.backupIntervalDays = clampInt(s.backupIntervalDays, 1, 3650, 7);
+  return doc;
+}
+
+/* Grundpruefung auf Struktur. Gibt eine Liste von Problemen zurueck (leer = ok). */
+function validateDoc(doc) {
+  const problems = [];
+  if (!doc || typeof doc !== 'object' || Array.isArray(doc)) { return ['Die Datei enthält kein CRM-Dokument.']; }
+  const present = ENTITY_ARRAYS.filter(key => key in doc);
+  if (!present.length && !doc.meta) problems.push('Die Datei sieht nicht nach einem CRM-Backup aus.');
+  ENTITY_ARRAYS.forEach(key => {
+    if (key in doc && !Array.isArray(doc[key])) problems.push('Feld "' + key + '" ist kein Array.');
+  });
+  if ('meta' in doc && (typeof doc.meta !== 'object' || doc.meta === null)) problems.push('Feld "meta" ist ungültig.');
+  const version = docVersion(doc);
+  if (version > SCHEMA_VERSION) {
+    problems.push('Schema-Version ' + version + ' ist neuer als diese App (' + SCHEMA_VERSION + ').');
+  }
+  return problems;
+}
+
+/* ============================================================================
+   PERSIST + RENDER-LOOP
+   ========================================================================= */
+let persistTimer = null;
+let persistPending = false;
+
+function persist() {
+  persistPending = true;
+  if (persistTimer) clearTimeout(persistTimer);
+  persistTimer = setTimeout(flushPersist, PERSIST_DEBOUNCE_MS);
+}
+
+function flushPersist() {
+  if (!persistPending) return;
+  if (persistTimer) { clearTimeout(persistTimer); persistTimer = null; }
+  persistPending = false;
+  if (!dbHandle) return;
+  dbPut(state.data).then(() => {
+    if (bc) { try { bc.postMessage({ type: 'saved', tab: TAB_ID }); } catch (e) { /* egal */ } }
+  }).catch(err => {
+    const quota = err && (err.name === 'QuotaExceededError' || /quota/i.test(err.message || ''));
+    setStorageWarning(quota
+      ? 'Speicher voll — die letzten Änderungen konnten nicht gesichert werden. Bitte exportiere ein Backup und lösche alte Daten.'
+      : 'Änderungen konnten nicht gespeichert werden: ' + (err && err.message ? err.message : 'unbekannter Fehler'));
+    render();
+  });
+}
+
+function setStorageWarning(text) { state.ui.storageWarning = text; }
+
+/* Der einzige Weg, Daten zu aendern: mutieren -> speichern -> neu rendern. */
+function mutate(fn) {
+  const result = fn(state.data);
+  state.data.meta.updatedAt = new Date().toISOString();
+  persist();
+  render();
+  return result;
+}
+
+let renderQueued = false;
+function render() {
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => {
+    renderQueued = false;
+    try { paint(); }
+    catch (err) {
+      console.error('Render-Fehler', err);
+      document.getElementById('app').innerHTML =
+        '<div class="banner banner--danger">Beim Zeichnen der Ansicht ist ein Fehler aufgetreten: ' +
+        esc(err && err.message ? err.message : String(err)) + '</div>';
+    }
+  });
+}
+
+/* Zeichnet Navigation, Timer-Chip und die aktuelle View.
+   Fokus und Caret eines aktiven data-bind-Feldes werden wiederhergestellt,
+   damit das Tippen in Suchfeldern durch Re-Renders nicht unterbrochen wird. */
+function paint() {
+  const active = document.activeElement;
+  const bind = active && active.dataset ? active.dataset.bind : null;
+  const caret = bind && typeof active.selectionStart === 'number' ? active.selectionStart : null;
+
+  renderNav();
+  renderTimerSlot();
+  const app = document.getElementById('app');
+  app.innerHTML = viewHtml();
+
+  if (bind) {
+    const next = app.querySelector('[data-bind="' + bind + '"]') || document.querySelector('[data-bind="' + bind + '"]');
+    if (next && next !== document.activeElement) {
+      next.focus({ preventScroll: true });
+      if (caret !== null && typeof next.setSelectionRange === 'function') {
+        try { next.setSelectionRange(caret, caret); } catch (e) { /* z.B. bei type=date */ }
+      }
+    }
+  }
+  renderModal();
+  updateThemeButton();
+}
+
+function renderNav() {
+  const nav = document.getElementById('nav');
+  const html = NAV_ITEMS.map(item => {
+    const current = item.route === state.route.name ? ' aria-current="page"' : '';
+    return '<a class="nav__item" href="' + item.hash + '"' + current + '>' +
+      '<span class="nav__icon" aria-hidden="true">' + item.icon + '</span>' +
+      '<span class="nav__label">' + item.label + '</span></a>';
+  }).join('');
+  if (nav.dataset.route !== state.route.name) { nav.innerHTML = html; nav.dataset.route = state.route.name; }
+}
+
+/* ============================================================================
+   UTILITIES
+   ========================================================================= */
+function uid() {
+  if (window.crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  return 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+}
+function esc(value) {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function attr(value) { return esc(value); }
+function truncate(text, max) {
+  const s = String(text || '');
+  return s.length > max ? s.slice(0, max - 1) + '…' : s;
+}
+function initials(name) {
+  return String(name || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0] ? w[0].toUpperCase() : '').join('');
+}
+function clampInt(value, min, max, fallback) {
+  const n = parseInt(value, 10);
+  if (!isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+function byId(list, id) { return list.find(item => item.id === id) || null; }
+function sortBy(list, pick, desc) {
+  return list.slice().sort((a, b) => {
+    const x = pick(a), y = pick(b);
+    if (x === y) return 0;
+    return (x > y ? 1 : -1) * (desc ? -1 : 1);
+  });
+}
+function nowIso() { return new Date().toISOString(); }
+
+/* --- Datum: intern immer YYYY-MM-DD (lokal), nie UTC-verschoben --------- */
+function todayKey() { return dateKey(new Date()); }
+function dateKey(d) {
+  const date = (d instanceof Date) ? d : new Date(d);
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return date.getFullYear() + '-' + m + '-' + day;
+}
+function keyToDate(key) {
+  const parts = String(key || '').slice(0, 10).split('-');
+  return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2] || 1));
+}
+function addDaysKey(key, days) {
+  const d = keyToDate(key);
+  d.setDate(d.getDate() + days);
+  return dateKey(d);
+}
+function daysBetween(fromKey, toKey) {
+  const a = keyToDate(fromKey), b = keyToDate(toKey);
+  return Math.round((b - a) / 86400000);
+}
+function daysSince(iso) {
+  if (!iso) return null;
+  return daysBetween(dateKey(new Date(iso)), todayKey());
+}
+function weekStartKey(d) {
+  const date = (d instanceof Date) ? new Date(d) : keyToDate(d);
+  const day = (date.getDay() + 6) % 7; /* Montag = 0 */
+  date.setDate(date.getDate() - day);
+  return dateKey(date);
+}
+function isOverdue(dueKey) { return dueKey < todayKey(); }
+function isToday(dueKey) { return dueKey === todayKey(); }
+function isThisWeek(dueKey) {
+  const start = weekStartKey(new Date());
+  return dueKey >= start && dueKey <= addDaysKey(start, 6);
+}
+
+const fmtDate = new Intl.DateTimeFormat(LOCALE, { day: '2-digit', month: '2-digit', year: 'numeric' });
+const fmtDateLong = new Intl.DateTimeFormat(LOCALE, { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
+const fmtMonth = new Intl.DateTimeFormat(LOCALE, { month: 'long', year: 'numeric' });
+const fmtTime = new Intl.DateTimeFormat(LOCALE, { hour: '2-digit', minute: '2-digit' });
+const fmtNum1 = new Intl.NumberFormat(LOCALE, { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+const fmtNum2 = new Intl.NumberFormat(LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function formatDate(value) { if (!value) return '—'; return fmtDate.format(value.length === 10 ? keyToDate(value) : new Date(value)); }
+function formatDateLong(value) { if (!value) return '—'; return fmtDateLong.format(value.length === 10 ? keyToDate(value) : new Date(value)); }
+function formatMonth(value) { return fmtMonth.format(new Date(value)); }
+function formatDateTime(iso) { if (!iso) return '—'; const d = new Date(iso); return fmtDate.format(d) + ', ' + fmtTime.format(d); }
+function formatNumber(n, digits) { return (digits === 2 ? fmtNum2 : fmtNum1).format(n || 0); }
+
+/* "heute" / "gestern" / "vor 3 Tagen" / "in 5 Tagen" */
+function relativeDays(dayKey) {
+  const diff = daysBetween(todayKey(), dayKey);
+  if (diff === 0) return 'heute';
+  if (diff === 1) return 'morgen';
+  if (diff === -1) return 'gestern';
+  if (diff < 0) return 'vor ' + Math.abs(diff) + ' Tagen';
+  return 'in ' + diff + ' Tagen';
+}
+
+/* Dauer-Parser fuer die Zeiterfassung. Erlaubte Schreibweisen:
+     "1:30"  -> 90     "0:45" -> 45
+     "90m"   -> 90     "90"   -> 90     "45 min" -> 45
+     "1,5h"  -> 90     "1.5h" -> 90     "2 h"    -> 120
+   Rueckgabe: Minuten (Number) oder null, wenn nicht interpretierbar. */
+function parseDuration(input) {
+  const raw = String(input || '').trim().toLowerCase().replace(/\s+/g, '');
+  if (!raw) return null;
+  let m = raw.match(/^(\d{1,3}):([0-5]?\d)$/);
+  if (m) return Number(m[1]) * 60 + Number(m[2]);
+  m = raw.match(/^(\d+(?:[.,]\d+)?)(h|std|stunden?)$/);
+  if (m) return Math.round(Number(m[1].replace(',', '.')) * 60);
+  m = raw.match(/^(\d+(?:[.,]\d+)?)(m|min|minuten?)$/);
+  if (m) return Math.round(Number(m[1].replace(',', '.')));
+  m = raw.match(/^(\d+(?:[.,]\d+)?)$/);
+  if (m) {
+    const n = Number(m[1].replace(',', '.'));
+    return Number.isInteger(n) ? Math.round(n) : Math.round(n * 60); /* "90" = 90 min, "1,5" = 1,5 h */
+  }
+  return null;
+}
+function formatDuration(minutes) {
+  const total = Math.max(0, Math.round(minutes || 0));
+  const h = Math.floor(total / 60), m = total % 60;
+  return h + ':' + String(m).padStart(2, '0') + ' h';
+}
+function formatHours(minutes) { return formatNumber((minutes || 0) / 60, 2) + ' h'; }
+function hoursDecimal(minutes) { return Math.round((minutes || 0) / 0.6) / 100; }
+
+/* ============================================================================
+   SELEKTOREN / QUERIES
+   Reine Funktionen ueber state.data. Views lesen nur, sie schreiben nie.
+   Teure Ergebnisse werden pro Datenstand gecacht (memo).
+   ========================================================================= */
+let dataVersion = 0;
+const memoCache = new Map();
+let memoVersion = -1;
+function memo(key, fn) {
+  if (memoVersion !== dataVersion) { memoCache.clear(); memoVersion = dataVersion; }
+  if (memoCache.has(key)) return memoCache.get(key);
+  const value = fn();
+  memoCache.set(key, value);
+  return value;
+}
+function bumpData() { dataVersion += 1; }
+
+const D = () => state.data;
+function settings() { return state.data.meta.settings; }
+function getClient(id) { return byId(D().clients, id); }
+function getProject(id) { return byId(D().projects, id); }
+function getContact(id) { return byId(D().contacts, id); }
+function getTask(id) { return byId(D().tasks, id); }
+
+function contactsOf(clientId) { return D().contacts.filter(c => c.clientId === clientId); }
+function linksOf(ownerType, ownerId) { return D().links.filter(l => l.ownerType === ownerType && l.ownerId === ownerId); }
+function projectsOf(clientId) { return D().projects.filter(p => p.clientId === clientId); }
+function tasksOf(projectId) { return sortBy(D().tasks.filter(t => t.projectId === projectId), t => t.order || 0); }
+function interactionsOf(clientId) { return sortBy(D().interactions.filter(i => i.clientId === clientId), i => i.occurredAt, true); }
+function interactionsOfProject(projectId) { return sortBy(D().interactions.filter(i => i.projectId === projectId), i => i.occurredAt, true); }
+function timeEntriesOfProject(projectId) { return D().timeEntries.filter(e => e.projectId === projectId); }
+
+function lastContactAt(clientId) {
+  return memo('lastContact:' + clientId, () => {
+    let latest = null;
+    D().interactions.forEach(i => { if (i.clientId === clientId && (!latest || i.occurredAt > latest)) latest = i.occurredAt; });
+    return latest;
+  });
+}
+
+function staleClients() {
+  const limit = settings().staleDays;
+  return memo('stale:' + limit, () => D().clients
+    .filter(c => c.status === 'active')
+    .map(c => ({ client: c, last: lastContactAt(c.id) }))
+    .filter(x => x.last === null || daysSince(x.last) >= limit)
+    .sort((a, b) => {
+      if (a.last === null && b.last === null) return a.client.name.localeCompare(b.client.name, LOCALE);
+      if (a.last === null) return -1;
+      if (b.last === null) return 1;
+      return a.last < b.last ? -1 : 1;
+    }));
+}
+
+function openFollowups(clientId) {
+  const list = D().followups.filter(f => f.status === 'open' && (clientId === undefined || f.clientId === clientId));
+  return sortBy(list, f => f.dueDate || '9999-12-31');
+}
+function openFollowupsOfProject(projectId) {
+  return sortBy(D().followups.filter(f => f.status === 'open' && f.projectId === projectId), f => f.dueDate || '9999-12-31');
+}
+function dueFollowups() { const t = todayKey(); return openFollowups().filter(f => f.dueDate && f.dueDate <= t); }
+function overdueFollowups() { const t = todayKey(); return openFollowups().filter(f => f.dueDate && f.dueDate < t); }
+
+/* Der naechste Schritt pro Kunde: faellige Wiedervorlage schlaegt Stille. */
+function nextActionFor(clientId) {
+  const open = openFollowups(clientId);
+  if (open.length) {
+    const f = open[0];
+    const overdue = f.dueDate && isOverdue(f.dueDate);
+    return {
+      tone: overdue ? 'danger' : (isToday(f.dueDate) ? 'warn' : 'accent'),
+      icon: '🔔',
+      text: f.title,
+      hint: f.dueDate ? (overdue ? 'überfällig seit ' + formatDate(f.dueDate) : 'fällig ' + relativeDays(f.dueDate)) : 'ohne Datum',
+      followupId: f.id
+    };
+  }
+  const last = lastContactAt(clientId);
+  if (!last) return { tone: 'warn', icon: '👋', text: 'Noch kein Kontakt erfasst', hint: 'Erste Interaktion anlegen' };
+  const days = daysSince(last);
+  if (days >= settings().staleDays) {
+    return { tone: 'warn', icon: '🌵', text: 'Seit ' + days + ' Tagen kein Kontakt', hint: 'Zuletzt am ' + formatDate(last) };
+  }
+  return { tone: 'muted', icon: '✅', text: 'Alles ruhig', hint: 'Letzter Kontakt ' + relativeDays(dateKey(new Date(last))) };
+}
+
+function entryDayKey(entry) { return dateKey(new Date(entry.startedAt)); }
+function minutesInRange(entries, fromKey, toKey) {
+  return entries.reduce((sum, e) => {
+    const key = entryDayKey(e);
+    if (fromKey && key < fromKey) return sum;
+    if (toKey && key > toKey) return sum;
+    return sum + (e.durationMinutes || 0);
+  }, 0);
+}
+function weekMinutes() {
+  const start = weekStartKey(new Date());
+  return memo('weekMinutes:' + start, () => minutesInRange(D().timeEntries, start, addDaysKey(start, 6)));
+}
+function projectWeekMinutes(projectId) {
+  const start = weekStartKey(new Date());
+  return minutesInRange(timeEntriesOfProject(projectId), start, addDaysKey(start, 6));
+}
+function projectTotalMinutes(projectId) {
+  return timeEntriesOfProject(projectId).reduce((s, e) => s + (e.durationMinutes || 0), 0);
+}
+function openTaskCount(projectId) { return D().tasks.filter(t => t.projectId === projectId && t.status !== 'done').length; }
+
+function needsBackupHint() {
+  const meta = D().meta;
+  if (state.ui.backupHintDismissed) return false;
+  const hasData = ENTITY_ARRAYS.some(key => D()[key].length > 0);
+  if (!hasData) return false;
+  if (!meta.lastBackupAt) return true;
+  return daysSince(meta.lastBackupAt) >= meta.settings.backupIntervalDays;
+}
+function isEmptyDb() { return ENTITY_ARRAYS.every(key => D()[key].length === 0); }
+
+/* ============================================================================
+   VIEW-BAUSTEINE
+   ========================================================================= */
+function emptyState(icon, text, actionHtml) {
+  return `<div class="empty"><div class="empty__icon" aria-hidden="true">${icon}</div>
+    <p class="empty__text">${esc(text)}</p>${actionHtml || ''}</div>`;
+}
+function card(title, bodyHtml, opts) {
+  const o = opts || {};
+  const head = title
+    ? `<div class="card__head"><h2>${esc(title)}</h2><span class="card__spacer"></span>${o.actions || ''}</div>`
+    : '';
+  return `<section class="card">${head}<div class="card__body${o.flush ? ' card__body--flush' : ''}">${bodyHtml}</div></section>`;
+}
+function statusBadge(map, key) {
+  const s = map[key] || { label: key, badge: '' };
+  return `<span class="badge ${s.badge}">${esc(s.label)}</span>`;
+}
+function clientLink(clientId) {
+  const c = getClient(clientId);
+  if (!c) return '<span class="muted">—</span>';
+  return `<a href="#/clients/${attr(c.id)}">${esc(c.name)}</a>`;
+}
+function projectLink(projectId) {
+  const p = getProject(projectId);
+  if (!p) return '';
+  return `<a href="#/projects/${attr(p.id)}">${esc(p.name)}</a>`;
+}
+function projectDot(project) {
+  return `<span class="dot" style="background:${attr(project.color || '#888')}" aria-hidden="true"></span>`;
+}
+function clientOptions(selectedId, includeEmpty) {
+  const list = sortBy(D().clients, c => c.name.toLowerCase());
+  const head = includeEmpty ? `<option value="">— kein Kunde —</option>` : '';
+  return head + list.map(c => `<option value="${attr(c.id)}"${c.id === selectedId ? ' selected' : ''}>${esc(c.name)}${c.company ? ' (' + esc(c.company) + ')' : ''}</option>`).join('');
+}
+function projectOptions(clientId, selectedId, includeEmpty) {
+  let list = D().projects.filter(p => p.status !== 'archived' || p.id === selectedId);
+  if (clientId) list = list.filter(p => p.clientId === clientId);
+  list = sortBy(list, p => p.name.toLowerCase());
+  const head = includeEmpty ? `<option value="">— kein Projekt —</option>` : '';
+  return head + list.map(p => {
+    const c = getClient(p.clientId);
+    return `<option value="${attr(p.id)}"${p.id === selectedId ? ' selected' : ''}>${esc(p.name)}${c ? ' — ' + esc(c.name) : ''}</option>`;
+  }).join('');
+}
+function selectOptions(map, selected) {
+  return Object.keys(map).map(key => {
+    const label = typeof map[key] === 'string' ? map[key] : map[key].label;
+    return `<option value="${attr(key)}"${key === selected ? ' selected' : ''}>${esc(label)}</option>`;
+  }).join('');
+}
+function followupRow(f, opts) {
+  const o = opts || {};
+  const overdue = f.status === 'open' && f.dueDate && isOverdue(f.dueDate);
+  const today = f.status === 'open' && f.dueDate && isToday(f.dueDate);
+  const badge = f.status === 'done'
+    ? `<span class="badge badge--success">Erledigt</span>`
+    : (overdue ? `<span class="badge badge--danger">Überfällig</span>`
+      : (today ? `<span class="badge badge--warn">Heute</span>` : `<span class="badge">${esc(relativeDays(f.dueDate))}</span>`));
+  const where = [];
+  if (f.clientId) where.push(clientLink(f.clientId));
+  if (f.projectId) where.push(projectLink(f.projectId));
+  return `<li class="list__item">
+    <button class="btn btn--sm btn--icon" data-action="followup:toggle" data-id="${attr(f.id)}"
+      aria-label="${f.status === 'open' ? 'Als erledigt markieren' : 'Wieder öffnen'}"
+      title="${f.status === 'open' ? 'Als erledigt markieren' : 'Wieder öffnen'}">${f.status === 'open' ? '○' : '✔'}</button>
+    <div class="list__main">
+      <div class="list__title ${f.status === 'done' ? 'done-text' : ''}">${esc(f.title)}</div>
+      <div class="list__meta">${badge} ${f.dueDate ? esc(formatDate(f.dueDate)) : 'ohne Datum'}${where.length ? ' · ' + where.join(' · ') : ''}</div>
+      ${f.notes ? `<div class="list__meta pre-wrap">${esc(truncate(f.notes, 180))}</div>` : ''}
+    </div>
+    ${o.hideActions ? '' : `<div class="list__actions">
+      <button class="btn btn--sm btn--ghost" data-action="followup:edit" data-id="${attr(f.id)}" aria-label="Wiedervorlage bearbeiten">✏️</button>
+      <button class="btn btn--sm btn--ghost" data-action="followup:delete" data-id="${attr(f.id)}" aria-label="Wiedervorlage löschen">🗑</button>
+    </div>`}
+  </li>`;
+}
+function interactionRow(i, opts) {
+  const o = opts || {};
+  const type = INTERACTION_TYPE[i.type] || INTERACTION_TYPE.note;
+  const dir = DIRECTION[i.direction] || DIRECTION.internal;
+  const parts = [formatDateTime(i.occurredAt), type.label];
+  if (i.contactId) { const c = getContact(i.contactId); if (c) parts.push(esc(c.name)); }
+  return `<li class="list__item">
+    <span class="timeline__icon" title="${attr(type.label)}" aria-hidden="true">${type.icon}</span>
+    <div class="list__main">
+      <div class="list__title">${esc(i.summary)}</div>
+      <div class="list__meta"><span title="${attr(dir.label)}">${dir.icon}</span> ${parts.join(' · ')}
+        ${!o.hideClient && i.clientId ? ' · ' + clientLink(i.clientId) : ''}
+        ${!o.hideProject && i.projectId ? ' · ' + projectLink(i.projectId) : ''}</div>
+      ${i.body ? `<details class="small"><summary class="muted">Details</summary><div class="pre-wrap">${esc(i.body)}</div></details>` : ''}
+    </div>
+    <div class="list__actions">
+      <button class="btn btn--sm btn--ghost" data-action="interaction:edit" data-id="${attr(i.id)}" aria-label="Interaktion bearbeiten">✏️</button>
+      <button class="btn btn--sm btn--ghost" data-action="interaction:delete" data-id="${attr(i.id)}" aria-label="Interaktion löschen">🗑</button>
+    </div>
+  </li>`;
+}
+function linkList(ownerType, ownerId) {
+  const links = linksOf(ownerType, ownerId);
+  if (!links.length) {
+    return emptyState('🔗', 'Noch keine Quick-Links.',
+      `<button class="btn btn--sm" data-action="link:new" data-owner-type="${attr(ownerType)}" data-owner-id="${attr(ownerId)}">Link hinzufügen</button>`);
+  }
+  return `<ul class="list">${links.map(l => {
+    const kind = LINK_KIND[l.kind] || LINK_KIND.web;
+    const isFile = /^file:/i.test(l.url);
+    const target = isFile
+      ? `<span class="list__title">${esc(l.label)}</span>`
+      : `<a class="list__title" href="${attr(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.label)}</a>`;
+    return `<li class="list__item">
+      <span class="timeline__icon" title="${attr(kind.label)}" aria-hidden="true">${kind.icon}</span>
+      <div class="list__main">${target}
+        <div class="list__meta mono">${esc(truncate(l.url, 70))}</div>
+        ${isFile ? `<div class="list__meta xsmall">Lokaler Ordner — Pfad kopieren und im Finder mit ⌘⇧G einfügen.</div>` : ''}
+      </div>
+      <div class="list__actions">
+        ${isFile ? `<button class="btn btn--sm" data-action="link:copy" data-id="${attr(l.id)}">Pfad kopieren</button>` : ''}
+        <button class="btn btn--sm btn--ghost" data-action="link:edit" data-id="${attr(l.id)}" aria-label="Link bearbeiten">✏️</button>
+        <button class="btn btn--sm btn--ghost" data-action="link:delete" data-id="${attr(l.id)}" aria-label="Link löschen">🗑</button>
+      </div>
+    </li>`;
+  }).join('')}</ul>`;
+}
+function storageBanner() {
+  if (!state.ui.storageWarning) return '';
+  return `<div class="banner banner--danger"><span>⚠️</span><div class="list__main">${esc(state.ui.storageWarning)}</div>
+    <button class="btn btn--sm" data-action="backup:export">Backup jetzt exportieren</button></div>`;
+}
+
+/* ============================================================================
+   VIEWS
+   Pro Ansicht eine renderX()-Funktion, die einen HTML-String liefert.
+   ========================================================================= */
+function viewHtml() {
+  if (!state.data) return '<div class="empty">Lädt…</div>';
+  if (isEmptyDb() && state.route.name !== 'settings') return storageBanner() + renderWelcome();
+  const map = {
+    today: renderToday, clients: renderClients, clientDetail: renderClientDetail,
+    projects: renderProjects, projectDetail: renderProjectDetail,
+    followups: renderFollowups, time: renderTime, settings: renderSettings
+  };
+  const fn = map[state.route.name] || renderNotFound;
+  return storageBanner() + fn();
+}
+
+function renderNotFound() {
+  return `<div class="card"><div class="card__body">${emptyState('🧭',
+    'Diese Seite gibt es nicht (mehr). Vielleicht wurde der Eintrag gelöscht.',
+    '<a class="btn btn--primary" href="#/today">Zurück zu Heute</a>')}</div></div>`;
+}
+
+function renderWelcome() {
+  return `<div class="card"><div class="card__body">
+    <div class="empty">
+      <div class="empty__icon" aria-hidden="true">📇</div>
+      <h1>Willkommen beim Freelancer-CRM</h1>
+      <p class="empty__text">Ein schlankes CRM für die Kommunikation mit deinen Kunden — alle Daten bleiben lokal in diesem Browser.</p>
+      <div class="chip-row" style="justify-content:center">
+        <button class="btn btn--primary" data-action="data:demo">Beispieldaten laden</button>
+        <button class="btn" data-action="client:new">Ersten Kunden anlegen</button>
+      </div>
+      <p class="empty__text xsmall" style="margin-top:24px">Beispieldaten zeigen alle Funktionen an einem realistischen Datensatz.
+        Vor dem Echtbetrieb unter „Daten“ alles löschen.</p>
+    </div>
+  </div></div>`;
+}
+
+/* --- Heute / Dashboard --------------------------------------------------- */
+function renderToday() {
+  const due = dueFollowups();
+  const stale = staleClients();
+  const activeProjects = sortBy(D().projects.filter(p => p.status === 'active'), p => p.name.toLowerCase());
+  const week = weekMinutes();
+  const overdueCount = overdueFollowups().length;
+
+  const backupBanner = needsBackupHint() ? `<div class="banner">
+      <span aria-hidden="true">💾</span>
+      <div class="list__main">${D().meta.lastBackupAt
+        ? 'Letztes Backup vor ' + daysSince(D().meta.lastBackupAt) + ' Tagen.'
+        : 'Du hast noch nie ein Backup gemacht.'} Deine Daten liegen nur in diesem Browser.</div>
+      <button class="btn btn--sm btn--primary" data-action="backup:export">Jetzt sichern</button>
+      <button class="btn btn--sm btn--ghost btn--icon" data-action="hint:dismiss" aria-label="Hinweis ausblenden">✕</button>
+    </div>` : '';
+
+  const dueHtml = due.length
+    ? `<ul class="list">${due.map(f => followupRow(f, { hideActions: true })).join('')}</ul>`
+    : emptyState('🎉', 'Keine offenen Wiedervorlagen für heute — gut so.');
+
+  const staleHtml = stale.length
+    ? `<ul class="list">${stale.slice(0, 8).map(x => `<li class="list__item">
+        <span class="timeline__icon" aria-hidden="true">🌵</span>
+        <div class="list__main">
+          <div class="list__title"><a href="#/clients/${attr(x.client.id)}">${esc(x.client.name)}</a></div>
+          <div class="list__meta">${x.last ? 'Letzter Kontakt ' + esc(relativeDays(dateKey(new Date(x.last)))) + ' (' + esc(formatDate(x.last)) + ')' : 'Noch kein Kontakt erfasst'}</div>
+        </div>
+        <div class="list__actions">
+          <button class="btn btn--sm" data-action="quickadd:open" data-client="${attr(x.client.id)}">+ Interaktion</button>
+        </div>
+      </li>`).join('')}</ul>${stale.length > 8 ? `<div class="card__body small muted">und ${stale.length - 8} weitere…</div>` : ''}`
+    : emptyState('👌', 'Kein Kunde ist still geworden.');
+
+  const projectsHtml = activeProjects.length
+    ? `<ul class="list">${activeProjects.map(p => {
+        const wm = projectWeekMinutes(p.id);
+        return `<li class="list__item">
+          ${projectDot(p)}
+          <div class="list__main">
+            <div class="list__title"><a href="#/projects/${attr(p.id)}">${esc(p.name)}</a></div>
+            <div class="list__meta">${clientLink(p.clientId)} · ${openTaskCount(p.id)} offene Aufgaben</div>
+          </div>
+          <div class="list__actions">
+            <span class="badge${wm ? ' badge--accent' : ''}">${esc(formatDuration(wm))}</span>
+            <button class="btn btn--sm" data-action="timer:start" data-project="${attr(p.id)}" title="Timer starten">▶</button>
+          </div>
+        </li>`;
+      }).join('')}</ul>`
+    : emptyState('📦', 'Keine aktiven Projekte.');
+
+  return `${backupBanner}
+    <div class="page-head"><h1>Heute</h1>
+      <span class="badge${overdueCount ? ' badge--danger' : ''}">${overdueCount} überfällig</span>
+      <button class="btn btn--primary" data-action="quickadd:open">+ Interaktion</button>
+    </div>
+    <div class="stat-row" style="margin-bottom:16px">
+      <div class="stat"><div class="stat__value">${esc(formatDuration(week))}</div><div class="stat__label">Diese Woche erfasst</div></div>
+      <div class="stat"><div class="stat__value">${due.length}</div><div class="stat__label">Fällige Wiedervorlagen</div></div>
+      <div class="stat"><div class="stat__value">${stale.length}</div><div class="stat__label">Stille Kunden</div></div>
+    </div>
+    ${card('Fällige & überfällige Wiedervorlagen', dueHtml, { flush: true, actions: '<a class="btn btn--sm" href="#/followups">Alle</a>' })}
+    ${card('Stille Kunden (seit ' + settings().staleDays + ' Tagen)', staleHtml, { flush: true })}
+    ${card('Aktive Projekte', projectsHtml, { flush: true, actions: '<a class="btn btn--sm" href="#/projects">Alle</a>' })}`;
+}
+
+/* --- Kunden -------------------------------------------------------------- */
+function filteredClients() {
+  const q = state.ui.clientSearch.trim().toLowerCase();
+  const status = state.ui.clientStatus;
+  const stale = state.ui.clientStale;
+  return D().clients.filter(c => {
+    if (status !== 'all' && c.status !== status) return false;
+    if (q) {
+      const hay = [c.name, c.company, (c.tags || []).join(' '), c.email, c.notes].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    if (stale !== 'all') {
+      const last = lastContactAt(c.id);
+      if (stale === 'never') { if (last) return false; }
+      else {
+        const days = last === null ? Infinity : daysSince(last);
+        if (days < Number(stale)) return false;
+      }
+    }
+    return true;
+  }).sort((a, b) => {
+    const la = lastContactAt(a.id), lb = lastContactAt(b.id);
+    if (la === lb) return a.name.localeCompare(b.name, LOCALE);
+    if (!la) return -1;
+    if (!lb) return 1;
+    return la < lb ? 1 : -1;
+  });
+}
+
+function renderClients() {
+  const list = filteredClients();
+  const staleOptions = [['all', 'Letzter Kontakt: egal'], ['7', 'vor über 7 Tagen'], ['14', 'vor über 14 Tagen'],
+    ['21', 'vor über 21 Tagen'], ['30', 'vor über 30 Tagen'], ['never', 'noch nie']];
+  const rows = list.length ? `<ul class="list">${list.map(c => {
+    const open = openFollowups(c.id).length;
+    const last = lastContactAt(c.id);
+    const next = nextActionFor(c.id);
+    return `<li class="list__item">
+      <div class="list__main">
+        <div class="list__title"><a href="#/clients/${attr(c.id)}">${esc(c.name)}</a>
+          ${c.company ? `<span class="muted small"> · ${esc(c.company)}</span>` : ''}</div>
+        <div class="list__meta">${statusBadge(CLIENT_STATUS, c.status)}
+          ${open ? `<span class="badge badge--accent">${open} offen</span>` : ''}
+          ${last ? 'Letzter Kontakt ' + esc(relativeDays(dateKey(new Date(last)))) : '<span class="badge badge--warn">Kein Kontakt</span>'}
+          ${(c.tags || []).length ? ' · ' + (c.tags || []).map(t => esc(t)).join(', ') : ''}</div>
+        <div class="list__meta xsmall">${next.icon} ${esc(next.text)}</div>
+      </div>
+      <div class="list__actions">
+        <button class="btn btn--sm" data-action="quickadd:open" data-client="${attr(c.id)}">+</button>
+      </div>
+    </li>`;
+  }).join('')}</ul>` : emptyState('👥',
+      D().clients.length ? 'Kein Kunde passt zu den Filtern.' : 'Noch keine Kunden.',
+      '<button class="btn btn--primary" data-action="client:new">Kunde anlegen</button>');
+
+  return `<div class="page-head"><h1>Kunden</h1>
+      <span class="badge">${list.length} / ${D().clients.length}</span>
+      <button class="btn btn--primary" data-action="client:new">+ Kunde</button></div>
+    <div class="card"><div class="card__body">
+      <div class="field-row" style="margin-bottom:0">
+        <label class="field" style="flex:2 1 220px"><span class="field__label">Suche</span>
+          <input class="input" type="search" data-bind="clientSearch" placeholder="Name, Firma, Tag…" value="${attr(state.ui.clientSearch)}"></label>
+        <label class="field"><span class="field__label">Status</span>
+          <select class="select" data-bind="clientStatus">
+            <option value="all"${state.ui.clientStatus === 'all' ? ' selected' : ''}>Alle</option>
+            ${selectOptions(CLIENT_STATUS, state.ui.clientStatus)}
+          </select></label>
+        <label class="field"><span class="field__label">Kontakt</span>
+          <select class="select" data-bind="clientStale">
+            ${staleOptions.map(o => `<option value="${attr(o[0])}"${state.ui.clientStale === o[0] ? ' selected' : ''}>${esc(o[1])}</option>`).join('')}
+          </select></label>
+      </div>
+    </div></div>
+    <section class="card"><div class="card__body card__body--flush">${rows}</div></section>`;
+}
+
+/* --- Kunden-Detail ------------------------------------------------------- */
+function renderClientDetail() {
+  const c = getClient(state.route.id);
+  if (!c) return renderNotFound();
+  const next = nextActionFor(c.id);
+  const contacts = contactsOf(c.id);
+  const open = openFollowups(c.id);
+  const projects = projectsOf(c.id);
+  let timeline = interactionsOf(c.id);
+  const totalInteractions = timeline.length;
+  if (state.ui.timelineType !== 'all') timeline = timeline.filter(i => i.type === state.ui.timelineType);
+  const shown = timeline.slice(0, state.ui.timelineLimit);
+
+  const contactsHtml = contacts.length ? `<ul class="list">${contacts.map(p => `<li class="list__item">
+      <span class="timeline__icon" aria-hidden="true">${p.isPrimary ? '⭐' : '👤'}</span>
+      <div class="list__main">
+        <div class="list__title">${esc(p.name)} ${p.isPrimary ? '<span class="badge badge--accent">Primär</span>' : ''}</div>
+        <div class="list__meta">${p.role ? esc(p.role) : ''}
+          ${p.email ? ` · <a href="mailto:${attr(p.email)}">${esc(p.email)}</a>` : ''}
+          ${p.phone ? ` · <a href="tel:${attr(p.phone.replace(/\s/g, ''))}">${esc(p.phone)}</a>` : ''}</div>
+      </div>
+      <div class="list__actions">
+        ${p.isPrimary ? '' : `<button class="btn btn--sm btn--ghost" data-action="contact:primary" data-id="${attr(p.id)}" title="Als Primärkontakt setzen">⭐</button>`}
+        <button class="btn btn--sm btn--ghost" data-action="contact:edit" data-id="${attr(p.id)}" aria-label="Kontakt bearbeiten">✏️</button>
+        <button class="btn btn--sm btn--ghost" data-action="contact:delete" data-id="${attr(p.id)}" aria-label="Kontakt löschen">🗑</button>
+      </div></li>`).join('')}</ul>`
+    : emptyState('👤', 'Keine Kontaktpersonen erfasst.',
+        `<button class="btn btn--sm" data-action="contact:new" data-client="${attr(c.id)}">Person hinzufügen</button>`);
+
+  const followHtml = open.length ? `<ul class="list">${open.map(f => followupRow(f)).join('')}</ul>`
+    : emptyState('🔔', 'Keine offenen Wiedervorlagen.',
+        `<button class="btn btn--sm" data-action="followup:new" data-client="${attr(c.id)}">Wiedervorlage anlegen</button>`);
+
+  const projectsHtml = projects.length ? `<ul class="list">${projects.map(p => `<li class="list__item">
+      ${projectDot(p)}
+      <div class="list__main">
+        <div class="list__title"><a href="#/projects/${attr(p.id)}">${esc(p.name)}</a></div>
+        <div class="list__meta">${statusBadge(PROJECT_STATUS, p.status)} ${openTaskCount(p.id)} offene Aufgaben · ${esc(formatDuration(projectTotalMinutes(p.id)))} gesamt</div>
+      </div></li>`).join('')}</ul>`
+    : emptyState('📦', 'Noch keine Projekte.',
+        `<button class="btn btn--sm" data-action="project:new" data-client="${attr(c.id)}">Projekt anlegen</button>`);
+
+  let timelineHtml;
+  if (!shown.length) {
+    timelineHtml = emptyState('🕘', totalInteractions ? 'Keine Interaktion dieses Typs.' : 'Noch keine Interaktionen erfasst.',
+      `<button class="btn btn--sm btn--primary" data-action="quickadd:open" data-client="${attr(c.id)}">Erste Interaktion erfassen</button>`);
+  } else {
+    let lastMonth = '';
+    timelineHtml = '<ul class="list">' + shown.map(i => {
+      const month = formatMonth(i.occurredAt);
+      const head = month !== lastMonth ? `<li class="timeline__month">${esc(month)}</li>` : '';
+      lastMonth = month;
+      return head + interactionRow(i, { hideClient: true });
+    }).join('') + '</ul>';
+    if (timeline.length > shown.length) {
+      timelineHtml += `<div class="card__body" style="text-align:center">
+        <button class="btn btn--sm" data-action="timeline:more">Mehr anzeigen (${timeline.length - shown.length} weitere)</button></div>`;
+    }
+  }
+
+  const typeFilter = `<select class="select" data-bind="timelineType" style="width:auto;min-width:130px" aria-label="Timeline filtern">
+      <option value="all"${state.ui.timelineType === 'all' ? ' selected' : ''}>Alle Typen</option>
+      ${selectOptions(INTERACTION_TYPE, state.ui.timelineType)}</select>`;
+
+  const tone = { danger: 'banner--danger', warn: '', accent: 'banner--info', muted: 'banner--info' }[next.tone] || '';
+  return `<div class="page-head">
+      <a class="btn btn--sm btn--ghost" href="#/clients">← Kunden</a>
+      <h1>${esc(c.name)}</h1>
+      ${statusBadge(CLIENT_STATUS, c.status)}
+      <button class="btn btn--sm" data-action="client:edit" data-id="${attr(c.id)}">Bearbeiten</button>
+      <button class="btn btn--sm btn--primary" data-action="quickadd:open" data-client="${attr(c.id)}">+ Interaktion</button>
+    </div>
+    <div class="banner ${tone}"><span aria-hidden="true">${next.icon}</span>
+      <div class="list__main"><strong>Nächste Aktion:</strong> ${esc(next.text)}
+        <span class="muted small"> — ${esc(next.hint)}</span></div></div>
+    <div class="grid-2">
+      <div>
+        ${card('Stammdaten', `<div class="stack small">
+          ${c.company ? `<div><span class="muted">Firma:</span> ${esc(c.company)}</div>` : ''}
+          ${c.email ? `<div><span class="muted">E-Mail:</span> <a href="mailto:${attr(c.email)}">${esc(c.email)}</a></div>` : ''}
+          ${c.phone ? `<div><span class="muted">Telefon:</span> <a href="tel:${attr(c.phone.replace(/\s/g, ''))}">${esc(c.phone)}</a></div>` : ''}
+          ${(c.tags || []).length ? `<div class="chip-row">${c.tags.map(t => `<span class="badge">${esc(t)}</span>`).join('')}</div>` : ''}
+          ${c.notes ? `<div class="pre-wrap">${esc(c.notes)}</div>` : ''}
+          ${!c.company && !c.email && !c.phone && !(c.tags || []).length && !c.notes ? '<span class="muted">Keine weiteren Stammdaten.</span>' : ''}
+        </div>`, { actions: `<button class="btn btn--sm btn--ghost btn--icon" data-action="client:delete" data-id="${attr(c.id)}" aria-label="Kunde löschen">🗑</button>` })}
+        ${card('Kontaktpersonen', contactsHtml, { flush: true, actions: `<button class="btn btn--sm" data-action="contact:new" data-client="${attr(c.id)}">+ Person</button>` })}
+        ${card('Ressourcen', linkList('client', c.id), { flush: true, actions: `<button class="btn btn--sm" data-action="link:new" data-owner-type="client" data-owner-id="${attr(c.id)}">+ Link</button>` })}
+      </div>
+      <div>
+        ${card('Offene Wiedervorlagen', followHtml, { flush: true, actions: `<button class="btn btn--sm" data-action="followup:new" data-client="${attr(c.id)}">+ Wiedervorlage</button>` })}
+        ${card('Projekte', projectsHtml, { flush: true, actions: `<button class="btn btn--sm" data-action="project:new" data-client="${attr(c.id)}">+ Projekt</button>` })}
+      </div>
+    </div>
+    <section class="card">
+      <div class="card__head"><h2>Timeline</h2><span class="badge">${totalInteractions}</span><span class="card__spacer"></span>${typeFilter}</div>
+      <div class="card__body card__body--flush">${timelineHtml}</div>
+    </section>`;
+}
+
+/* --- Projekte ------------------------------------------------------------ */
+function filteredProjects() {
+  const q = state.ui.projectSearch.trim().toLowerCase();
+  const status = state.ui.projectStatus;
+  return D().projects.filter(p => {
+    if (status === 'open' && (p.status === 'archived' || p.status === 'done')) return false;
+    if (status !== 'open' && status !== 'all' && p.status !== status) return false;
+    if (q) {
+      const client = getClient(p.clientId);
+      const hay = [p.name, p.description, client ? client.name : '', client ? client.company : ''].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function renderProjects() {
+  const list = filteredProjects();
+  const groups = new Map();
+  list.forEach(p => {
+    if (!groups.has(p.clientId)) groups.set(p.clientId, []);
+    groups.get(p.clientId).push(p);
+  });
+  const ordered = Array.from(groups.entries()).sort((a, b) => {
+    const ca = getClient(a[0]), cb = getClient(b[0]);
+    return (ca ? ca.name : '').localeCompare(cb ? cb.name : '', LOCALE);
+  });
+
+  const body = ordered.length ? ordered.map(([clientId, projects]) => {
+    const client = getClient(clientId);
+    return `<section class="card">
+      <div class="card__head"><h2>${client ? esc(client.name) : 'Ohne Kunde'}</h2>
+        <span class="badge">${projects.length}</span><span class="card__spacer"></span>
+        ${client ? `<a class="btn btn--sm btn--ghost" href="#/clients/${attr(client.id)}">Kunde öffnen</a>` : ''}</div>
+      <div class="card__body card__body--flush"><ul class="list">
+        ${sortBy(projects, p => p.name.toLowerCase()).map(p => `<li class="list__item">
+          ${projectDot(p)}
+          <div class="list__main">
+            <div class="list__title"><a href="#/projects/${attr(p.id)}">${esc(p.name)}</a></div>
+            <div class="list__meta">${statusBadge(PROJECT_STATUS, p.status)}
+              ${openTaskCount(p.id)} offene Aufgaben · ${esc(formatDuration(projectTotalMinutes(p.id)))} gesamt
+              ${projectWeekMinutes(p.id) ? ' · <span class="badge badge--accent">' + esc(formatDuration(projectWeekMinutes(p.id))) + ' diese Woche</span>' : ''}</div>
+            ${p.description ? `<div class="list__meta xsmall">${esc(truncate(p.description, 120))}</div>` : ''}
+          </div>
+          <div class="list__actions">
+            <button class="btn btn--sm" data-action="timer:start" data-project="${attr(p.id)}" title="Timer starten">▶</button>
+          </div>
+        </li>`).join('')}
+      </ul></div></section>`;
+  }).join('') : `<div class="card"><div class="card__body">${emptyState('📦',
+      D().projects.length ? 'Kein Projekt passt zu den Filtern.' : 'Noch keine Projekte.',
+      '<button class="btn btn--primary" data-action="project:new">Projekt anlegen</button>')}</div></div>`;
+
+  return `<div class="page-head"><h1>Projekte</h1><span class="badge">${list.length}</span>
+      <button class="btn btn--primary" data-action="project:new">+ Projekt</button></div>
+    <div class="card"><div class="card__body"><div class="field-row" style="margin-bottom:0">
+      <label class="field" style="flex:2 1 220px"><span class="field__label">Suche</span>
+        <input class="input" type="search" data-bind="projectSearch" placeholder="Projekt oder Kunde…" value="${attr(state.ui.projectSearch)}"></label>
+      <label class="field"><span class="field__label">Status</span>
+        <select class="select" data-bind="projectStatus">
+          <option value="open"${state.ui.projectStatus === 'open' ? ' selected' : ''}>Laufend (ohne fertig/archiviert)</option>
+          <option value="all"${state.ui.projectStatus === 'all' ? ' selected' : ''}>Alle</option>
+          ${selectOptions(PROJECT_STATUS, state.ui.projectStatus)}
+        </select></label>
+    </div></div></div>
+    ${body}`;
+}
+
+function renderProjectDetail() {
+  const p = getProject(state.route.id);
+  if (!p) return renderNotFound();
+  const client = getClient(p.clientId);
+  const tasks = tasksOf(p.id);
+  const openTasks = tasks.filter(t => t.status !== 'done');
+  const doneTasks = tasks.filter(t => t.status === 'done');
+  const entries = sortBy(timeEntriesOfProject(p.id), e => e.startedAt, true);
+  const total = projectTotalMinutes(p.id);
+  const week = projectWeekMinutes(p.id);
+  const estimate = tasks.reduce((s, t) => s + (t.estimateMinutes || 0), 0);
+  const interactions = interactionsOfProject(p.id);
+  const follow = openFollowupsOfProject(p.id);
+  const timer = D().meta.activeTimer;
+  const running = timer && timer.projectId === p.id;
+
+  const taskItem = t => `<li class="list__item">
+    <button class="btn btn--sm btn--icon" data-action="task:cycle" data-id="${attr(t.id)}"
+      title="Status wechseln (${attr(TASK_STATUS[t.status].label)})" aria-label="Status wechseln">${TASK_STATUS[t.status].icon}</button>
+    <div class="list__main">
+      <div class="list__title ${t.status === 'done' ? 'done-text' : ''}">${esc(t.title)}</div>
+      <div class="list__meta">${esc(TASK_STATUS[t.status].label)}
+        ${t.estimateMinutes ? ' · geschätzt ' + esc(formatDuration(t.estimateMinutes)) : ''}
+        ${taskMinutes(t.id) ? ' · erfasst ' + esc(formatDuration(taskMinutes(t.id))) : ''}</div>
+    </div>
+    <div class="list__actions">
+      <button class="btn btn--sm btn--ghost" data-action="task:move" data-id="${attr(t.id)}" data-dir="up" aria-label="Nach oben">↑</button>
+      <button class="btn btn--sm btn--ghost" data-action="task:move" data-id="${attr(t.id)}" data-dir="down" aria-label="Nach unten">↓</button>
+      <button class="btn btn--sm btn--ghost" data-action="timer:start" data-project="${attr(p.id)}" data-task="${attr(t.id)}" aria-label="Timer für Aufgabe starten">▶</button>
+      <button class="btn btn--sm btn--ghost" data-action="task:edit" data-id="${attr(t.id)}" aria-label="Aufgabe bearbeiten">✏️</button>
+      <button class="btn btn--sm btn--ghost" data-action="task:delete" data-id="${attr(t.id)}" aria-label="Aufgabe löschen">🗑</button>
+    </div></li>`;
+
+  const tasksHtml = `<form data-form="task-add" class="card__body" style="padding-bottom:0">
+      <input type="hidden" name="projectId" value="${attr(p.id)}">
+      <div class="row"><input class="input" name="title" placeholder="Neue Aufgabe — Enter legt an" style="flex:1 1 200px" autocomplete="off">
+        <button class="btn btn--primary" type="submit">+</button></div>
+    </form>
+    ${openTasks.length ? `<ul class="list">${openTasks.map(taskItem).join('')}</ul>`
+      : `<div class="card__body small muted">Keine offenen Aufgaben.</div>`}
+    ${doneTasks.length ? `<div class="card__body" style="padding-top:8px">
+        <button class="btn btn--sm btn--ghost" data-action="tasks:toggleDone">${state.ui.showDoneTasks ? '▾' : '▸'} ${doneTasks.length} erledigt</button>
+      </div>${state.ui.showDoneTasks ? `<ul class="list">${doneTasks.map(taskItem).join('')}</ul>` : ''}` : ''}`;
+
+  const timeHtml = entries.length ? `<div class="table-wrap"><table class="data">
+      <thead><tr><th>Datum</th><th>Aufgabe</th><th class="num">Dauer</th><th>Notiz</th><th></th></tr></thead>
+      <tbody>${entries.slice(0, 12).map(e => {
+        const t = e.taskId ? getTask(e.taskId) : null;
+        return `<tr><td>${esc(formatDate(e.startedAt))}</td><td>${t ? esc(truncate(t.title, 30)) : '—'}</td>
+          <td class="num">${esc(formatDuration(e.durationMinutes))}</td><td class="wrap">${esc(truncate(e.note || '', 60))}</td>
+          <td><button class="btn btn--sm btn--ghost" data-action="time:edit" data-id="${attr(e.id)}" aria-label="Eintrag bearbeiten">✏️</button></td></tr>`;
+      }).join('')}</tbody></table></div>
+      ${entries.length > 12 ? `<div class="card__body small muted">${entries.length - 12} weitere Einträge unter <a href="#/time">Zeit</a>.</div>` : ''}`
+    : emptyState('⏱', 'Noch keine Zeit erfasst.',
+        `<button class="btn btn--sm" data-action="timer:start" data-project="${attr(p.id)}">Timer starten</button>`);
+
+  return `<div class="page-head">
+      <a class="btn btn--sm btn--ghost" href="#/projects">← Projekte</a>
+      <h1>${esc(p.name)}</h1>${statusBadge(PROJECT_STATUS, p.status)}
+      <button class="btn btn--sm" data-action="project:edit" data-id="${attr(p.id)}">Bearbeiten</button>
+      <button class="btn btn--sm" data-action="followup:new" data-client="${attr(p.clientId)}" data-project="${attr(p.id)}">+ Wiedervorlage</button>
+      <button class="btn btn--sm btn--primary" data-action="quickadd:open" data-client="${attr(p.clientId)}" data-project="${attr(p.id)}">+ Interaktion</button>
+    </div>
+    <div class="banner banner--info"><span aria-hidden="true">📦</span><div class="list__main">
+      Kunde: ${client ? clientLink(client.id) : '<span class="muted">unbekannt</span>'}
+      ${p.description ? ` — <span class="muted">${esc(p.description)}</span>` : ''}</div>
+      ${running
+        ? `<button class="btn btn--sm btn--danger" data-action="timer:stop">■ Timer stoppen</button>`
+        : `<button class="btn btn--sm btn--primary" data-action="timer:start" data-project="${attr(p.id)}">▶ Timer starten</button>`}
+    </div>
+    <div class="stat-row" style="margin-bottom:16px">
+      <div class="stat"><div class="stat__value">${esc(formatDuration(total))}</div><div class="stat__label">Gesamt erfasst</div></div>
+      <div class="stat"><div class="stat__value">${esc(formatDuration(week))}</div><div class="stat__label">Diese Woche</div></div>
+      <div class="stat"><div class="stat__value">${openTasks.length}</div><div class="stat__label">Offene Aufgaben</div></div>
+      ${estimate ? `<div class="stat"><div class="stat__value">${esc(formatDuration(estimate))}</div><div class="stat__label">Geschätzt gesamt</div></div>` : ''}
+    </div>
+    <div class="grid-2">
+      <div>
+        <section class="card"><div class="card__head"><h2>Aufgaben</h2><span class="badge">${openTasks.length} offen</span></div>
+          <div class="card__body card__body--flush">${tasksHtml}</div></section>
+        ${card('Ressourcen', linkList('project', p.id), { flush: true, actions: `<button class="btn btn--sm" data-action="link:new" data-owner-type="project" data-owner-id="${attr(p.id)}">+ Link</button>` })}
+      </div>
+      <div>
+        ${card('Erfasste Zeit', timeHtml, { flush: true, actions: `<button class="btn btn--sm" data-action="time:new" data-project="${attr(p.id)}">+ Zeit</button>` })}
+        ${follow.length ? card('Offene Wiedervorlagen', `<ul class="list">${follow.map(f => followupRow(f)).join('')}</ul>`, { flush: true }) : ''}
+      </div>
+    </div>
+    ${card('Interaktionen zu diesem Projekt', interactions.length
+      ? `<ul class="list">${interactions.map(i => interactionRow(i, { hideProject: true })).join('')}</ul>`
+      : emptyState('💬', 'Noch keine projektbezogenen Interaktionen.',
+          `<button class="btn btn--sm btn--primary" data-action="quickadd:open" data-client="${attr(p.clientId)}" data-project="${attr(p.id)}">Interaktion erfassen</button>`),
+      { flush: true })}`;
+}
+
+function taskMinutes(taskId) {
+  return D().timeEntries.filter(e => e.taskId === taskId).reduce((s, e) => s + (e.durationMinutes || 0), 0);
+}
+
+/* --- Follow-ups ---------------------------------------------------------- */
+function filteredFollowups() {
+  const st = state.ui.followupStatus, when = state.ui.followupWhen, client = state.ui.followupClient;
+  const t = todayKey();
+  return D().followups.filter(f => {
+    if (st !== 'all' && f.status !== st) return false;
+    if (client !== 'all' && f.clientId !== client) return false;
+    if (when !== 'all' && f.status === 'open') {
+      if (!f.dueDate) return when === 'later';
+      if (when === 'overdue' && !(f.dueDate < t)) return false;
+      if (when === 'today' && f.dueDate !== t) return false;
+      if (when === 'week' && !isThisWeek(f.dueDate)) return false;
+      if (when === 'later' && !(f.dueDate > addDaysKey(weekStartKey(new Date()), 6))) return false;
+    }
+    return true;
+  }).sort((a, b) => {
+    if (a.status !== b.status) return a.status === 'open' ? -1 : 1;
+    const da = a.dueDate || '9999-12-31', db = b.dueDate || '9999-12-31';
+    return da < db ? -1 : (da > db ? 1 : 0);
+  });
+}
+
+function renderFollowups() {
+  const list = filteredFollowups();
+  const counts = {
+    overdue: overdueFollowups().length,
+    open: openFollowups().length,
+    done: D().followups.filter(f => f.status === 'done').length
+  };
+  const whenOptions = [['all', 'Jederzeit'], ['overdue', 'Überfällig'], ['today', 'Heute'], ['week', 'Diese Woche'], ['later', 'Später']];
+  const rows = list.length ? `<ul class="list">${list.map(f => followupRow(f)).join('')}</ul>`
+    : emptyState('🔔', D().followups.length ? 'Keine Wiedervorlage passt zu den Filtern.' : 'Noch keine Wiedervorlagen.',
+        '<button class="btn btn--primary" data-action="followup:new">Wiedervorlage anlegen</button>');
+
+  return `<div class="page-head"><h1>Follow-ups</h1>
+      <span class="badge${counts.overdue ? ' badge--danger' : ''}">${counts.overdue} überfällig</span>
+      <span class="badge">${counts.open} offen</span>
+      <button class="btn btn--primary" data-action="followup:new">+ Wiedervorlage</button></div>
+    <div class="card"><div class="card__body"><div class="field-row" style="margin-bottom:0">
+      <label class="field"><span class="field__label">Status</span>
+        <select class="select" data-bind="followupStatus">
+          <option value="open"${state.ui.followupStatus === 'open' ? ' selected' : ''}>Offen</option>
+          <option value="done"${state.ui.followupStatus === 'done' ? ' selected' : ''}>Erledigt</option>
+          <option value="all"${state.ui.followupStatus === 'all' ? ' selected' : ''}>Alle</option>
+        </select></label>
+      <label class="field"><span class="field__label">Zeitraum</span>
+        <select class="select" data-bind="followupWhen">
+          ${whenOptions.map(o => `<option value="${attr(o[0])}"${state.ui.followupWhen === o[0] ? ' selected' : ''}>${esc(o[1])}</option>`).join('')}
+        </select></label>
+      <label class="field" style="flex:2 1 200px"><span class="field__label">Kunde</span>
+        <select class="select" data-bind="followupClient">
+          <option value="all"${state.ui.followupClient === 'all' ? ' selected' : ''}>Alle Kunden</option>
+          ${clientOptions(state.ui.followupClient, false)}
+        </select></label>
+    </div></div></div>
+    <section class="card"><div class="card__body card__body--flush">${rows}</div></section>`;
+}
+
+/* --- Zeit ---------------------------------------------------------------- */
+function timeRangeKeys() {
+  const r = state.ui.timeRange;
+  const thisWeek = weekStartKey(new Date());
+  if (r === 'week') return { from: thisWeek, to: addDaysKey(thisWeek, 6), label: 'Diese Woche' };
+  if (r === 'lastweek') { const s = addDaysKey(thisWeek, -7); return { from: s, to: addDaysKey(s, 6), label: 'Letzte Woche' }; }
+  if (r === 'month') {
+    const d = new Date();
+    const from = dateKey(new Date(d.getFullYear(), d.getMonth(), 1));
+    const to = dateKey(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+    return { from, to, label: 'Dieser Monat' };
+  }
+  if (r === 'custom') return { from: state.ui.timeFrom || '0000-01-01', to: state.ui.timeTo || '9999-12-31', label: 'Zeitraum' };
+  return { from: null, to: null, label: 'Alle' };
+}
+function entriesInRange() {
+  const range = timeRangeKeys();
+  return sortBy(D().timeEntries.filter(e => {
+    const key = entryDayKey(e);
+    if (range.from && key < range.from) return false;
+    if (range.to && key > range.to) return false;
+    return true;
+  }), e => e.startedAt, true);
+}
+
+function renderTime() {
+  const range = timeRangeKeys();
+  const entries = entriesInRange();
+  const total = entries.reduce((s, e) => s + (e.durationMinutes || 0), 0);
+  const timer = D().meta.activeTimer;
+
+  const byProject = new Map();
+  const byClient = new Map();
+  entries.forEach(e => {
+    byProject.set(e.projectId, (byProject.get(e.projectId) || 0) + (e.durationMinutes || 0));
+    const p = getProject(e.projectId);
+    const cid = p ? p.clientId : 'unknown';
+    byClient.set(cid, (byClient.get(cid) || 0) + (e.durationMinutes || 0));
+  });
+  const sumRows = (map, nameFn) => Array.from(map.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([id, minutes]) => `<tr><td class="wrap">${nameFn(id)}</td><td class="num">${esc(formatDuration(minutes))}</td>
+      <td class="num">${esc(formatNumber(hoursDecimal(minutes), 2))}</td></tr>`).join('');
+
+  const timerWidget = timer ? `<div class="row">
+      <span class="badge badge--success">läuft</span>
+      <strong>${esc(getProject(timer.projectId) ? getProject(timer.projectId).name : 'Projekt')}</strong>
+      <span class="mono" data-timer-live>${esc(formatDuration(runningMinutes()))}</span>
+      <span class="right"><button class="btn btn--danger" data-action="timer:stop">■ Stoppen</button></span>
+    </div>`
+    : `<form data-form="timer-start" class="row">
+      <select class="select" name="projectId" style="flex:1 1 200px" required aria-label="Projekt für Timer">
+        ${projectOptions(null, null, true)}</select>
+      <input class="input" name="note" placeholder="Notiz (optional)" style="flex:1 1 160px">
+      <button class="btn btn--primary" type="submit">▶ Timer starten</button>
+    </form>`;
+
+  const rows = entries.length ? `<div class="table-wrap"><table class="data">
+      <thead><tr><th>Datum</th><th>Kunde</th><th>Projekt</th><th>Aufgabe</th><th class="num">Dauer</th><th>Notiz</th><th>Quelle</th><th></th></tr></thead>
+      <tbody>${entries.map(e => {
+        const p = getProject(e.projectId);
+        const c = p ? getClient(p.clientId) : null;
+        const t = e.taskId ? getTask(e.taskId) : null;
+        return `<tr>
+          <td>${esc(formatDate(e.startedAt))}</td>
+          <td>${c ? esc(c.name) : '<span class="muted">—</span>'}</td>
+          <td>${p ? esc(p.name) : '<span class="muted">gelöscht</span>'}</td>
+          <td>${t ? esc(truncate(t.title, 28)) : '—'}</td>
+          <td class="num">${esc(formatDuration(e.durationMinutes))}</td>
+          <td class="wrap">${esc(truncate(e.note || '', 70))}</td>
+          <td><span class="badge">${e.source === 'timer' ? '⏱ Timer' : '✍️ manuell'}</span></td>
+          <td class="nowrap">
+            <button class="btn btn--sm btn--ghost" data-action="time:edit" data-id="${attr(e.id)}" aria-label="Eintrag bearbeiten">✏️</button>
+            <button class="btn btn--sm btn--ghost" data-action="time:delete" data-id="${attr(e.id)}" aria-label="Eintrag löschen">🗑</button>
+          </td></tr>`;
+      }).join('')}</tbody></table></div>`
+    : emptyState('⏱', 'Keine Zeiteinträge in diesem Zeitraum.',
+        '<button class="btn btn--primary" data-action="time:new">Zeit erfassen</button>');
+
+  return `<div class="page-head"><h1>Zeit</h1><span class="badge">${esc(range.label)}</span>
+      <button class="btn" data-action="csv:export">⬇ CSV</button>
+      <button class="btn btn--primary" data-action="time:new">+ Zeit erfassen</button></div>
+    ${card('Timer', timerWidget)}
+    <div class="card"><div class="card__body"><div class="field-row" style="margin-bottom:0">
+      <label class="field"><span class="field__label">Zeitraum</span>
+        <select class="select" data-bind="timeRange">
+          <option value="week"${state.ui.timeRange === 'week' ? ' selected' : ''}>Diese Woche</option>
+          <option value="lastweek"${state.ui.timeRange === 'lastweek' ? ' selected' : ''}>Letzte Woche</option>
+          <option value="month"${state.ui.timeRange === 'month' ? ' selected' : ''}>Dieser Monat</option>
+          <option value="all"${state.ui.timeRange === 'all' ? ' selected' : ''}>Alle</option>
+          <option value="custom"${state.ui.timeRange === 'custom' ? ' selected' : ''}>Frei wählbar…</option>
+        </select></label>
+      ${state.ui.timeRange === 'custom' ? `
+        <label class="field"><span class="field__label">Von</span>
+          <input class="input" type="date" data-bind="timeFrom" value="${attr(state.ui.timeFrom)}"></label>
+        <label class="field"><span class="field__label">Bis</span>
+          <input class="input" type="date" data-bind="timeTo" value="${attr(state.ui.timeTo)}"></label>` : ''}
+      <div class="field" style="align-self:flex-end">
+        <div class="stat" style="padding:6px 12px"><div class="stat__value">${esc(formatDuration(total))}</div>
+          <div class="stat__label">Summe · ${esc(formatNumber(hoursDecimal(total), 2))} h dezimal</div></div>
+      </div>
+    </div></div></div>
+    ${card('Einträge (' + entries.length + ')', rows, { flush: true })}
+    <div class="grid-2">
+      ${card('Summe pro Projekt', byProject.size ? `<div class="table-wrap"><table class="data">
+          <thead><tr><th>Projekt</th><th class="num">Dauer</th><th class="num">h dez.</th></tr></thead>
+          <tbody>${sumRows(byProject, id => { const p = getProject(id); return p ? esc(p.name) : '<span class="muted">gelöscht</span>'; })}</tbody>
+        </table></div>` : '<span class="muted small">Keine Daten.</span>', { flush: byProject.size > 0 })}
+      ${card('Summe pro Kunde', byClient.size ? `<div class="table-wrap"><table class="data">
+          <thead><tr><th>Kunde</th><th class="num">Dauer</th><th class="num">h dez.</th></tr></thead>
+          <tbody>${sumRows(byClient, id => { const c = getClient(id); return c ? esc(c.name) : '<span class="muted">—</span>'; })}</tbody>
+        </table></div>` : '<span class="muted small">Keine Daten.</span>', { flush: byClient.size > 0 })}
+    </div>`;
+}
+
+/* --- Daten & Einstellungen ----------------------------------------------- */
+function renderSettings() {
+  const s = settings();
+  const meta = D().meta;
+  const counts = ENTITY_ARRAYS.map(key => ({ key, n: D()[key].length }));
+  const bytes = new Blob([JSON.stringify(state.data)]).size;
+  const labels = {
+    clients: 'Kunden', contacts: 'Kontakte', links: 'Quick-Links', interactions: 'Interaktionen',
+    followups: 'Wiedervorlagen', projects: 'Projekte', tasks: 'Aufgaben', timeEntries: 'Zeiteinträge'
+  };
+  return `<div class="page-head"><h1>Daten & Einstellungen</h1></div>
+    ${card('Darstellung', `<form data-form="settings-theme">
+      <label class="field"><span class="field__label">Theme</span>
+        <select class="select" name="theme">
+          <option value="auto"${s.theme === 'auto' ? ' selected' : ''}>Automatisch (System)</option>
+          <option value="light"${s.theme === 'light' ? ' selected' : ''}>Hell</option>
+          <option value="dark"${s.theme === 'dark' ? ' selected' : ''}>Dunkel</option>
+        </select></label>
+      <button class="btn" type="submit">Speichern</button></form>`)}
+    ${card('Signale', `<form data-form="settings-signals">
+      <div class="field-row">
+        <label class="field"><span class="field__label">„Stiller Kunde“ ab … Tagen</span>
+          <input class="input" type="number" name="staleDays" min="1" max="3650" value="${attr(s.staleDays)}" required>
+          <span class="field__hint">Aktive Kunden ohne Kontakt seit dieser Zeit erscheinen am Dashboard.</span></label>
+        <label class="field"><span class="field__label">Backup-Erinnerung alle … Tage</span>
+          <input class="input" type="number" name="backupIntervalDays" min="1" max="3650" value="${attr(s.backupIntervalDays)}" required></label>
+      </div>
+      <button class="btn" type="submit">Speichern</button></form>`)}
+    ${card('Backup', `<div class="stack">
+      <div class="small muted">Letztes Backup: ${meta.lastBackupAt ? esc(formatDateTime(meta.lastBackupAt)) + ' (vor ' + daysSince(meta.lastBackupAt) + ' Tagen)' : 'noch nie'}</div>
+      <div class="chip-row">
+        <button class="btn btn--primary" data-action="backup:export">⬇ Backup exportieren</button>
+        <button class="btn" data-action="backup:import">⬆ Backup importieren</button>
+        ${state.ui.undo ? `<button class="btn btn--danger" data-action="backup:undo">↩ Letzten Import rückgängig</button>` : ''}
+      </div>
+      <div class="small muted">Der Export enthält das vollständige Dokument inklusive Einstellungen und Schema-Version.</div>
+    </div>`)}
+    ${card('Daten', `<div class="stack">
+      <div class="chip-row">
+        <button class="btn" data-action="data:demo">Beispieldaten laden</button>
+        <button class="btn btn--danger" data-action="data:wipe">Alle Daten löschen</button>
+      </div>
+      <div class="small muted">Beispieldaten zeigen alle Funktionen an einem realistischen Datensatz.
+        Vor dem Start mit echten Kunden alles löschen — vorher exportieren!</div>
+    </div>`)}
+    ${card('Über', `<div class="stack small">
+      <div><span class="muted">Schema-Version:</span> ${meta.schemaVersion}</div>
+      <div><span class="muted">Speicherbedarf:</span> ${esc(formatNumber(bytes / 1024, 1))} KB${dbHandle ? '' : ' <span class="badge badge--danger">nur im Speicher</span>'}</div>
+      <div><span class="muted">Zuletzt geändert:</span> ${esc(formatDateTime(meta.updatedAt))}</div>
+      <div class="chip-row" style="margin-top:8px">${counts.map(c => `<span class="badge">${esc(labels[c.key])}: ${c.n}</span>`).join('')}</div>
+      <div style="margin-top:8px"><button class="btn btn--sm" data-action="shortcuts:help">⌨️ Tastatur-Kürzel</button></div>
+    </div>`)}`;
+}
+
+/* ============================================================================
+   ROUTER
+   ========================================================================= */
+const ROUTES = [
+  { re: /^\/?$/,                    build: () => ({ name: 'today', id: null }) },
+  { re: /^\/today$/,                build: () => ({ name: 'today', id: null }) },
+  { re: /^\/clients$/,              build: () => ({ name: 'clients', id: null }) },
+  { re: /^\/clients\/([^/]+)$/,     build: m => ({ name: 'clientDetail', id: decodeURIComponent(m[1]) }) },
+  { re: /^\/projects$/,             build: () => ({ name: 'projects', id: null }) },
+  { re: /^\/projects\/([^/]+)$/,    build: m => ({ name: 'projectDetail', id: decodeURIComponent(m[1]) }) },
+  { re: /^\/followups$/,            build: () => ({ name: 'followups', id: null }) },
+  { re: /^\/time$/,                 build: () => ({ name: 'time', id: null }) },
+  { re: /^\/settings$/,             build: () => ({ name: 'settings', id: null }) }
+];
+
+function parseHash() {
+  const raw = location.hash.replace(/^#/, '');
+  const [path, queryString] = raw.split('?');
+  const query = {};
+  if (queryString) {
+    queryString.split('&').forEach(pair => {
+      if (!pair) return;
+      const [k, v] = pair.split('=');
+      query[decodeURIComponent(k)] = decodeURIComponent(v || '');
+    });
+  }
+  for (const route of ROUTES) {
+    const m = path.match(route.re);
+    if (m) return Object.assign(route.build(m), { query });
+  }
+  return { name: 'notFound', id: null, query };
+}
+
+function applyRoute() {
+  const next = parseHash();
+  const changed = next.name !== state.route.name || next.id !== state.route.id;
+  state.route = next;
+  if (changed) {
+    /* Ansichts-Filter, die nur zum Detail gehoeren, beim Wechsel zuruecksetzen */
+    state.ui.timelineLimit = TIMELINE_PAGE;
+    state.ui.timelineType = 'all';
+    window.scrollTo(0, 0);
+  }
+  if (next.query.filter && next.name === 'followups') state.ui.followupWhen = next.query.filter;
+  render();
+}
+
+/* ============================================================================
+   MODALS / FORMS
+   ========================================================================= */
+let lastModalRef = null;
+let modalOpener = null;
+
+function openModal(config) {
+  modalOpener = document.activeElement;
+  state.ui.modal = Object.assign({ id: uid() }, config);
+  render();
+}
+function closeModal() {
+  if (!state.ui.modal) return;
+  state.ui.modal = null;
+  render();
+  if (modalOpener && document.contains(modalOpener)) { try { modalOpener.focus(); } catch (e) { /* egal */ } }
+  modalOpener = null;
+  if (state.ui.externalChangePending) { state.ui.externalChangePending = false; reloadFromDb(); }
+}
+
+/* Baut das Modal nur neu, wenn sich die Modal-Identitaet aendert — sonst
+   wuerden Eingaben bei jedem Re-Render verloren gehen. */
+function renderModal() {
+  const root = document.getElementById('modal-root');
+  const modal = state.ui.modal;
+  if (!modal) { if (lastModalRef !== null) { root.innerHTML = ''; lastModalRef = null; } return; }
+  if (lastModalRef === modal.id) return;
+  lastModalRef = modal.id;
+  const foot = modal.foot !== undefined ? modal.foot : `
+    <button class="btn" type="button" data-action="modal:close">Abbrechen</button>
+    <button class="btn btn--primary" type="submit" form="${attr(modal.formId || 'modal-form')}">${esc(modal.submitLabel || 'Speichern')}</button>`;
+  root.innerHTML = `<div class="overlay" data-overlay>
+    <div class="modal${modal.wide ? ' modal--wide' : ''}" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal__head"><h2 class="modal__title" id="modal-title">${esc(modal.title)}</h2>
+        <button class="btn btn--ghost btn--icon btn--sm" type="button" data-action="modal:close" aria-label="Schließen">✕</button></div>
+      <div class="modal__body">${modal.body}</div>
+      <div class="modal__foot">${foot}</div>
+    </div></div>`;
+  const el = root.querySelector(modal.focus || 'input:not([type=hidden]), select, textarea, button');
+  if (el) setTimeout(() => { try { el.focus(); if (el.select) el.select(); } catch (e) { /* egal */ } }, 0);
+}
+
+function trapFocus(ev) {
+  const modal = document.querySelector('.modal');
+  if (!modal) return;
+  const focusables = modal.querySelectorAll('a[href], button:not([disabled]), input:not([type=hidden]), select, textarea, [tabindex]:not([tabindex="-1"])');
+  if (!focusables.length) return;
+  const first = focusables[0], last = focusables[focusables.length - 1];
+  if (ev.shiftKey && document.activeElement === first) { ev.preventDefault(); last.focus(); }
+  else if (!ev.shiftKey && document.activeElement === last) { ev.preventDefault(); first.focus(); }
+}
+
+function field(label, inputHtml, hint) {
+  return `<label class="field"><span class="field__label">${esc(label)}</span>${inputHtml}
+    ${hint ? `<span class="field__hint">${esc(hint)}</span>` : ''}</label>`;
+}
+function toLocalInput(iso) {
+  const d = iso ? new Date(iso) : new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+function fromLocalInput(value) {
+  if (!value) return nowIso();
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? nowIso() : d.toISOString();
+}
+function formValues(form) {
+  const out = {};
+  new FormData(form).forEach((value, key) => { out[key] = typeof value === 'string' ? value.trim() : value; });
+  form.querySelectorAll('input[type=checkbox]').forEach(cb => { out[cb.name] = cb.checked; });
+  return out;
+}
+function markInvalid(form, name, message) {
+  const el = form.querySelector('[name="' + name + '"]');
+  if (!el) return;
+  el.setAttribute('aria-invalid', 'true');
+  const holder = el.closest('.field') || el.parentElement;
+  let err = holder.querySelector('.field__error');
+  if (!err) { err = document.createElement('span'); err.className = 'field__error'; holder.appendChild(err); }
+  err.textContent = message;
+  el.focus();
+}
+function clearErrors(form) {
+  form.querySelectorAll('[aria-invalid]').forEach(el => el.removeAttribute('aria-invalid'));
+  form.querySelectorAll('.field__error').forEach(el => el.remove());
+}
+
+/* --- Formular-Definitionen ---------------------------------------------- */
+function modalClient(client) {
+  const c = client || { name: '', company: '', email: '', phone: '', tags: [], notes: '', status: 'active' };
+  openModal({
+    title: client ? 'Kunde bearbeiten' : 'Neuer Kunde',
+    submitLabel: client ? 'Speichern' : 'Anlegen',
+    body: `<form data-form="client" id="modal-form">
+      <input type="hidden" name="id" value="${attr(client ? client.id : '')}">
+      ${field('Name *', `<input class="input" name="name" value="${attr(c.name)}" required autocomplete="off">`)}
+      <div class="field-row">
+        ${field('Firma', `<input class="input" name="company" value="${attr(c.company || '')}">`)}
+        ${field('Status', `<select class="select" name="status">${selectOptions(CLIENT_STATUS, c.status)}</select>`)}
+      </div>
+      <div class="field-row">
+        ${field('E-Mail', `<input class="input" type="email" name="email" value="${attr(c.email || '')}">`)}
+        ${field('Telefon', `<input class="input" name="phone" value="${attr(c.phone || '')}">`)}
+      </div>
+      ${field('Tags', `<input class="input" name="tags" value="${attr((c.tags || []).join(', '))}">`, 'Komma-getrennt, z. B. Retainer, Wien')}
+      ${field('Notizen', `<textarea class="textarea" name="notes">${esc(c.notes || '')}</textarea>`)}
+    </form>`
+  });
+}
+
+function modalContact(contact, clientId) {
+  const c = contact || { name: '', role: '', email: '', phone: '', isPrimary: false, clientId: clientId };
+  openModal({
+    title: contact ? 'Kontaktperson bearbeiten' : 'Neue Kontaktperson',
+    body: `<form data-form="contact" id="modal-form">
+      <input type="hidden" name="id" value="${attr(contact ? contact.id : '')}">
+      <input type="hidden" name="clientId" value="${attr(c.clientId)}">
+      ${field('Name *', `<input class="input" name="name" value="${attr(c.name)}" required autocomplete="off">`)}
+      ${field('Rolle', `<input class="input" name="role" value="${attr(c.role || '')}" placeholder="z. B. Projektleitung">`)}
+      <div class="field-row">
+        ${field('E-Mail', `<input class="input" type="email" name="email" value="${attr(c.email || '')}">`)}
+        ${field('Telefon', `<input class="input" name="phone" value="${attr(c.phone || '')}">`)}
+      </div>
+      <label class="check"><input type="checkbox" name="isPrimary"${c.isPrimary ? ' checked' : ''}> Primärkontakt</label>
+    </form>`
+  });
+}
+
+function modalQuickAdd(prefill) {
+  const p = prefill || {};
+  const clientId = p.clientId || (D().clients.length === 1 ? D().clients[0].id : '');
+  openModal({
+    title: 'Interaktion erfassen',
+    submitLabel: 'Speichern',
+    wide: true,
+    body: `<form data-form="quickadd" id="modal-form">
+      ${field('Kunde *', `<select class="select" name="clientId" data-dependent required>${clientOptions(clientId, true)}</select>`)}
+      <div class="field-row">
+        ${field('Kontaktperson', `<select class="select" name="contactId" data-contact-select>${contactOptionsFor(clientId, '')}</select>`)}
+        ${field('Projekt', `<select class="select" name="projectId" data-project-select>${projectOptions(clientId, p.projectId || '', true)}</select>`)}
+      </div>
+      <div class="field-row">
+        ${field('Typ', `<select class="select" name="type">${selectOptions(INTERACTION_TYPE, 'call')}</select>`)}
+        ${field('Richtung', `<select class="select" name="direction">${selectOptions(DIRECTION, 'out')}</select>`)}
+        ${field('Wann', `<input class="input" type="datetime-local" name="occurredAt" value="${attr(toLocalInput())}">`)}
+      </div>
+      ${field('Kurzfassung *', `<input class="input" name="summary" required autocomplete="off" placeholder="Worum ging es?">`)}
+      ${field('Details', `<textarea class="textarea" name="body" placeholder="Optional — Notizen, Ergebnisse, Zusagen"></textarea>`)}
+      <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
+      <label class="check" style="margin-bottom:12px">
+        <input type="checkbox" name="withFollowup" data-followup-toggle> 🔔 Wiedervorlage setzen</label>
+      <div data-followup-fields hidden>
+        ${field('Titel der Wiedervorlage', `<input class="input" name="followupTitle" placeholder="z. B. Angebot nachfassen">`)}
+        <div class="chip-row" style="margin-bottom:8px">
+          <button class="chip" type="button" data-quick-due="3">+3 Tage</button>
+          <button class="chip" type="button" data-quick-due="7">+1 Woche</button>
+          <button class="chip" type="button" data-quick-due="14">+2 Wochen</button>
+        </div>
+        ${field('Fällig am', `<input class="input" type="date" name="followupDue" value="${attr(addDaysKey(todayKey(), 7))}">`)}
+      </div>
+      <p class="xsmall muted">⌘/Strg + Enter speichert.</p>
+    </form>`,
+    focus: 'select[name=clientId]'
+  });
+}
+
+function contactOptionsFor(clientId, selected) {
+  const list = clientId ? contactsOf(clientId) : [];
+  return '<option value="">— keine Person —</option>' + list.map(c =>
+    `<option value="${attr(c.id)}"${c.id === selected ? ' selected' : ''}>${esc(c.name)}${c.role ? ' (' + esc(c.role) + ')' : ''}</option>`).join('');
+}
+
+function modalInteraction(interaction) {
+  const i = interaction;
+  openModal({
+    title: 'Interaktion bearbeiten',
+    wide: true,
+    body: `<form data-form="interaction" id="modal-form">
+      <input type="hidden" name="id" value="${attr(i.id)}">
+      ${field('Kunde *', `<select class="select" name="clientId" data-dependent required>${clientOptions(i.clientId, false)}</select>`)}
+      <div class="field-row">
+        ${field('Kontaktperson', `<select class="select" name="contactId" data-contact-select>${contactOptionsFor(i.clientId, i.contactId || '')}</select>`)}
+        ${field('Projekt', `<select class="select" name="projectId" data-project-select>${projectOptions(i.clientId, i.projectId || '', true)}</select>`)}
+      </div>
+      <div class="field-row">
+        ${field('Typ', `<select class="select" name="type">${selectOptions(INTERACTION_TYPE, i.type)}</select>`)}
+        ${field('Richtung', `<select class="select" name="direction">${selectOptions(DIRECTION, i.direction)}</select>`)}
+        ${field('Wann', `<input class="input" type="datetime-local" name="occurredAt" value="${attr(toLocalInput(i.occurredAt))}">`)}
+      </div>
+      ${field('Kurzfassung *', `<input class="input" name="summary" value="${attr(i.summary)}" required>`)}
+      ${field('Details', `<textarea class="textarea" name="body">${esc(i.body || '')}</textarea>`)}
+    </form>`
+  });
+}
+
+function modalFollowup(followup, prefill) {
+  const f = followup || Object.assign({ title: '', notes: '', dueDate: addDaysKey(todayKey(), 7), clientId: '', projectId: '' }, prefill || {});
+  openModal({
+    title: followup ? 'Wiedervorlage bearbeiten' : 'Neue Wiedervorlage',
+    body: `<form data-form="followup" id="modal-form">
+      <input type="hidden" name="id" value="${attr(followup ? followup.id : '')}">
+      ${field('Titel *', `<input class="input" name="title" value="${attr(f.title)}" required autocomplete="off" placeholder="z. B. Angebot nachfassen">`)}
+      <div class="field-row">
+        ${field('Kunde', `<select class="select" name="clientId" data-dependent>${clientOptions(f.clientId || '', true)}</select>`)}
+        ${field('Projekt', `<select class="select" name="projectId" data-project-select>${projectOptions(f.clientId || null, f.projectId || '', true)}</select>`)}
+      </div>
+      ${field('Fällig am *', `<input class="input" type="date" name="dueDate" value="${attr(f.dueDate || todayKey())}" required>`)}
+      <div class="chip-row" style="margin-bottom:12px">
+        <button class="chip" type="button" data-quick-due="3" data-target="dueDate">+3 Tage</button>
+        <button class="chip" type="button" data-quick-due="7" data-target="dueDate">+1 Woche</button>
+        <button class="chip" type="button" data-quick-due="14" data-target="dueDate">+2 Wochen</button>
+      </div>
+      ${field('Notizen', `<textarea class="textarea" name="notes">${esc(f.notes || '')}</textarea>`)}
+    </form>`
+  });
+}
+
+function modalLink(link, ownerType, ownerId) {
+  const l = link || { label: '', url: '', ownerType: ownerType, ownerId: ownerId };
+  openModal({
+    title: link ? 'Quick-Link bearbeiten' : 'Quick-Link hinzufügen',
+    body: `<form data-form="link" id="modal-form">
+      <input type="hidden" name="id" value="${attr(link ? link.id : '')}">
+      <input type="hidden" name="ownerType" value="${attr(l.ownerType)}">
+      <input type="hidden" name="ownerId" value="${attr(l.ownerId)}">
+      ${field('Bezeichnung *', `<input class="input" name="label" value="${attr(l.label)}" required placeholder="z. B. Jira-Board">`)}
+      ${field('URL *', `<input class="input" name="url" value="${attr(l.url)}" required placeholder="https://…">`,
+        'Web-Links, mailto:, tel:, App-Schemes und file:// sind erlaubt. Der Typ wird automatisch erkannt.')}
+      <div class="banner banner--info xsmall"><span aria-hidden="true">🗒</span><div class="list__main">
+        <strong>Apple-Notiz verlinken:</strong> In Notizen → Teilen → „Zusammenarbeiten“ → Link kopieren ergibt eine
+        <span class="mono">icloud.com/notes/…</span>-URL, die die Notiz öffnet.</div></div>
+    </form>`
+  });
+}
+
+function modalProject(project, clientId) {
+  const p = project || { name: '', description: '', status: 'active', color: PROJECT_COLORS[0], clientId: clientId || '' };
+  openModal({
+    title: project ? 'Projekt bearbeiten' : 'Neues Projekt',
+    body: `<form data-form="project" id="modal-form">
+      <input type="hidden" name="id" value="${attr(project ? project.id : '')}">
+      ${field('Name *', `<input class="input" name="name" value="${attr(p.name)}" required autocomplete="off">`)}
+      <div class="field-row">
+        ${field('Kunde *', `<select class="select" name="clientId" required>${clientOptions(p.clientId, true)}</select>`)}
+        ${field('Status', `<select class="select" name="status">${selectOptions(PROJECT_STATUS, p.status)}</select>`)}
+      </div>
+      ${field('Farbe', `<div class="chip-row">${PROJECT_COLORS.map(color => `
+        <label class="chip" style="gap:6px"><input type="radio" name="color" value="${attr(color)}"${color === p.color ? ' checked' : ''}
+          style="accent-color:${attr(color)}"> <span class="dot" style="background:${attr(color)}"></span></label>`).join('')}</div>`)}
+      ${field('Beschreibung', `<textarea class="textarea" name="description">${esc(p.description || '')}</textarea>`)}
+    </form>`
+  });
+}
+
+function modalTask(task) {
+  openModal({
+    title: 'Aufgabe bearbeiten',
+    body: `<form data-form="task-edit" id="modal-form">
+      <input type="hidden" name="id" value="${attr(task.id)}">
+      ${field('Titel *', `<input class="input" name="title" value="${attr(task.title)}" required>`)}
+      <div class="field-row">
+        ${field('Status', `<select class="select" name="status">${selectOptions(TASK_STATUS, task.status)}</select>`)}
+        ${field('Schätzung', `<input class="input" name="estimate" value="${attr(task.estimateMinutes ? formatDuration(task.estimateMinutes).replace(' h', '') : '')}" placeholder="z. B. 1:30, 90m, 1,5h">`)}
+      </div>
+    </form>`
+  });
+}
+
+function modalTimeEntry(entry, prefill) {
+  const e = entry || {};
+  const projectId = e.projectId || (prefill && prefill.projectId) || '';
+  openModal({
+    title: entry ? 'Zeiteintrag bearbeiten' : 'Zeit erfassen',
+    body: `<form data-form="time-entry" id="modal-form">
+      <input type="hidden" name="id" value="${attr(entry ? entry.id : '')}">
+      ${field('Projekt *', `<select class="select" name="projectId" data-dependent required>${projectOptions(null, projectId, true)}</select>`)}
+      ${field('Aufgabe', `<select class="select" name="taskId" data-task-select>${taskOptionsFor(projectId, e.taskId || '')}</select>`)}
+      <div class="field-row">
+        ${field('Datum', `<input class="input" type="date" name="day" value="${attr(entry ? entryDayKey(entry) : todayKey())}">`)}
+        ${field('Dauer *', `<input class="input" name="duration" value="${attr(entry ? formatDuration(entry.durationMinutes).replace(' h', '') : '')}" required placeholder="1:30 · 90m · 1,5h">`)}
+      </div>
+      <div class="field__hint" data-duration-preview style="margin:-8px 0 12px"></div>
+      ${field('Notiz', `<input class="input" name="note" value="${attr(e.note || '')}">`)}
+    </form>`
+  });
+}
+
+function taskOptionsFor(projectId, selected) {
+  const list = projectId ? tasksOf(projectId) : [];
+  return '<option value="">— keine Aufgabe —</option>' + list.map(t =>
+    `<option value="${attr(t.id)}"${t.id === selected ? ' selected' : ''}>${esc(t.title)}</option>`).join('');
+}
+
+function modalConfirm(title, message, confirmLabel, onConfirm, danger) {
+  const key = 'confirm-' + uid();
+  CONFIRMS[key] = onConfirm;
+  openModal({
+    title: title,
+    body: `<p>${esc(message)}</p>`,
+    foot: `<button class="btn" type="button" data-action="modal:close">Abbrechen</button>
+      <button class="btn ${danger ? 'btn--danger' : 'btn--primary'}" type="button" data-action="confirm:run" data-key="${attr(key)}">${esc(confirmLabel)}</button>`,
+    focus: '.btn'
+  });
+}
+const CONFIRMS = {};
+
+/* ============================================================================
+   FORM-HANDLER
+   Jeder Handler bekommt (values, form) und ist fuer Validierung,
+   Mutation, Modal-Schluss und Rueckmeldung zustaendig.
+   ========================================================================= */
+function parseTags(text) {
+  return String(text || '').split(',').map(t => t.trim()).filter(Boolean);
+}
+function detectLinkKind(url) {
+  const u = String(url || '').toLowerCase();
+  if (/^file:/.test(u)) return 'folder';
+  if (/^mailto:/.test(u)) return 'mail';
+  if (/^tel:/.test(u)) return 'web';
+  if (/icloud\.com\/notes|^notes:|^mobilenotes:|bear:|things:|obsidian:/.test(u)) return 'note';
+  if (/github\.com|gitlab\.com|bitbucket\.org|^git@/.test(u)) return 'repo';
+  if (/atlassian\.net\/(browse|jira)|jira\.|linear\.app|youtrack|asana\.com|trello\.com/.test(u)) return 'ticket';
+  if (/confluence|notion\.so|docs\.google\.com|coda\.io|\/wiki\//.test(u)) return 'docs';
+  if (/figma\.com|sketch\.com|penpot|miro\.com|excalidraw/.test(u)) return 'design';
+  return 'web';
+}
+function isSafeUrl(url) {
+  const u = String(url || '').trim();
+  if (!u) return false;
+  if (/^\s*javascript:/i.test(u) || /^\s*data:/i.test(u) || /^\s*vbscript:/i.test(u)) return false;
+  return /^[a-z][a-z0-9+.-]*:/i.test(u) || /^\//.test(u);
+}
+function snapshot() { return JSON.parse(JSON.stringify(state.data)); }
+function restoreSnapshot(snap) {
+  state.data = migrate(snap);
+  bumpData(); persist(); render();
+}
+
+const FORMS = {
+  client(v, form) {
+    if (!v.name) { markInvalid(form, 'name', 'Bitte einen Namen angeben.'); return; }
+    mutate(doc => {
+      if (v.id) {
+        const c = byId(doc.clients, v.id);
+        if (!c) return;
+        Object.assign(c, { name: v.name, company: v.company, email: v.email, phone: v.phone, status: v.status, notes: v.notes, tags: parseTags(v.tags) });
+      } else {
+        const client = {
+          id: uid(), name: v.name, company: v.company, email: v.email, phone: v.phone,
+          status: v.status || 'active', notes: v.notes, tags: parseTags(v.tags), createdAt: nowIso()
+        };
+        doc.clients.push(client);
+        v.id = client.id;
+      }
+    });
+    bumpData(); closeModal();
+    toast(v.id ? 'Kunde gespeichert.' : 'Kunde angelegt.', { type: 'success' });
+  },
+
+  contact(v, form) {
+    if (!v.name) { markInvalid(form, 'name', 'Bitte einen Namen angeben.'); return; }
+    mutate(doc => {
+      let contact = v.id ? byId(doc.contacts, v.id) : null;
+      if (!contact) { contact = { id: uid(), clientId: v.clientId }; doc.contacts.push(contact); }
+      Object.assign(contact, { name: v.name, role: v.role, email: v.email, phone: v.phone, isPrimary: !!v.isPrimary });
+      if (contact.isPrimary) {
+        doc.contacts.forEach(other => { if (other.clientId === contact.clientId && other.id !== contact.id) other.isPrimary = false; });
+      }
+    });
+    bumpData(); closeModal(); toast('Kontaktperson gespeichert.', { type: 'success' });
+  },
+
+  quickadd(v, form) {
+    if (!v.clientId) { markInvalid(form, 'clientId', 'Bitte einen Kunden wählen.'); return; }
+    if (!v.summary) { markInvalid(form, 'summary', 'Bitte eine Kurzfassung angeben.'); return; }
+    if (v.withFollowup && !v.followupTitle) { markInvalid(form, 'followupTitle', 'Bitte einen Titel für die Wiedervorlage angeben.'); return; }
+    const before = snapshot();
+    let ids = null;
+    mutate(doc => {
+      const interaction = {
+        id: uid(), clientId: v.clientId, contactId: v.contactId || null, projectId: v.projectId || null,
+        type: v.type || 'call', direction: v.direction || 'out',
+        occurredAt: fromLocalInput(v.occurredAt), summary: v.summary, body: v.body || ''
+      };
+      doc.interactions.push(interaction);
+      ids = { interaction: interaction.id, followup: null };
+      if (v.withFollowup) {
+        const f = {
+          id: uid(), clientId: v.clientId, projectId: v.projectId || null,
+          title: v.followupTitle, notes: '', dueDate: v.followupDue || addDaysKey(todayKey(), 7),
+          status: 'open', sourceInteractionId: interaction.id, completedAt: null
+        };
+        doc.followups.push(f);
+        ids.followup = f.id;
+      }
+    });
+    bumpData(); closeModal();
+    toast(ids.followup ? 'Interaktion + Wiedervorlage angelegt.' : 'Interaktion gespeichert.',
+      { type: 'success', actionLabel: 'Rückgängig', action: () => { restoreSnapshot(before); toast('Rückgängig gemacht.'); } });
+  },
+
+  interaction(v, form) {
+    if (!v.summary) { markInvalid(form, 'summary', 'Bitte eine Kurzfassung angeben.'); return; }
+    mutate(doc => {
+      const i = byId(doc.interactions, v.id);
+      if (!i) return;
+      Object.assign(i, {
+        clientId: v.clientId, contactId: v.contactId || null, projectId: v.projectId || null,
+        type: v.type, direction: v.direction, occurredAt: fromLocalInput(v.occurredAt),
+        summary: v.summary, body: v.body || ''
+      });
+    });
+    bumpData(); closeModal(); toast('Interaktion gespeichert.', { type: 'success' });
+  },
+
+  followup(v, form) {
+    if (!v.title) { markInvalid(form, 'title', 'Bitte einen Titel angeben.'); return; }
+    if (!v.dueDate) { markInvalid(form, 'dueDate', 'Bitte ein Fälligkeitsdatum wählen.'); return; }
+    mutate(doc => {
+      let f = v.id ? byId(doc.followups, v.id) : null;
+      if (!f) { f = { id: uid(), status: 'open', completedAt: null, sourceInteractionId: null }; doc.followups.push(f); }
+      Object.assign(f, { title: v.title, notes: v.notes || '', dueDate: v.dueDate, clientId: v.clientId || null, projectId: v.projectId || null });
+    });
+    bumpData(); closeModal(); toast('Wiedervorlage gespeichert.', { type: 'success' });
+  },
+
+  link(v, form) {
+    if (!v.label) { markInvalid(form, 'label', 'Bitte eine Bezeichnung angeben.'); return; }
+    if (!isSafeUrl(v.url)) {
+      markInvalid(form, 'url', 'Diese URL ist nicht erlaubt. Zulässig sind z. B. https://, mailto:, tel:, file:// oder App-Schemes.');
+      return;
+    }
+    mutate(doc => {
+      let l = v.id ? byId(doc.links, v.id) : null;
+      if (!l) { l = { id: uid(), ownerType: v.ownerType, ownerId: v.ownerId }; doc.links.push(l); }
+      Object.assign(l, { label: v.label, url: v.url, kind: detectLinkKind(v.url) });
+    });
+    bumpData(); closeModal(); toast('Quick-Link gespeichert.', { type: 'success' });
+  },
+
+  project(v, form) {
+    if (!v.name) { markInvalid(form, 'name', 'Bitte einen Namen angeben.'); return; }
+    if (!v.clientId) { markInvalid(form, 'clientId', 'Bitte einen Kunden wählen.'); return; }
+    mutate(doc => {
+      let p = v.id ? byId(doc.projects, v.id) : null;
+      if (!p) { p = { id: uid(), createdAt: nowIso() }; doc.projects.push(p); }
+      Object.assign(p, {
+        name: v.name, clientId: v.clientId, status: v.status || 'active',
+        description: v.description || '', color: v.color || PROJECT_COLORS[0]
+      });
+    });
+    bumpData(); closeModal(); toast('Projekt gespeichert.', { type: 'success' });
+  },
+
+  'task-add'(v, form) {
+    if (!v.title) return;
+    mutate(doc => {
+      const siblings = doc.tasks.filter(t => t.projectId === v.projectId);
+      const order = siblings.reduce((max, t) => Math.max(max, t.order || 0), 0) + 1;
+      doc.tasks.push({ id: uid(), projectId: v.projectId, title: v.title, status: 'todo', estimateMinutes: null, order: order });
+    });
+    bumpData();
+    form.reset();
+    const input = form.querySelector('input[name=title]');
+    if (input) setTimeout(() => input.focus(), 0);
+  },
+
+  'task-edit'(v, form) {
+    if (!v.title) { markInvalid(form, 'title', 'Bitte einen Titel angeben.'); return; }
+    let estimate = null;
+    if (v.estimate) {
+      estimate = parseDuration(v.estimate);
+      if (estimate === null) { markInvalid(form, 'estimate', 'Dauer nicht erkannt. Beispiele: 1:30, 90m, 1,5h'); return; }
+    }
+    mutate(doc => {
+      const t = byId(doc.tasks, v.id);
+      if (!t) return;
+      Object.assign(t, { title: v.title, status: v.status, estimateMinutes: estimate });
+    });
+    bumpData(); closeModal(); toast('Aufgabe gespeichert.', { type: 'success' });
+  },
+
+  'time-entry'(v, form) {
+    if (!v.projectId) { markInvalid(form, 'projectId', 'Bitte ein Projekt wählen.'); return; }
+    const minutes = parseDuration(v.duration);
+    if (minutes === null || minutes <= 0) {
+      markInvalid(form, 'duration', 'Dauer nicht erkannt. Beispiele: 1:30, 90m, 90, 1,5h');
+      return;
+    }
+    mutate(doc => {
+      let e = v.id ? byId(doc.timeEntries, v.id) : null;
+      const start = keyToDate(v.day || todayKey());
+      start.setHours(9, 0, 0, 0);
+      if (!e) { e = { id: uid(), source: 'manual' }; doc.timeEntries.push(e); }
+      Object.assign(e, {
+        projectId: v.projectId, taskId: v.taskId || null,
+        startedAt: e.source === 'timer' && e.startedAt && v.day === dateKey(new Date(e.startedAt)) ? e.startedAt : start.toISOString(),
+        endedAt: null, durationMinutes: minutes, note: v.note || ''
+      });
+    });
+    bumpData(); closeModal(); toast('Zeit gespeichert: ' + formatDuration(minutes), { type: 'success' });
+  },
+
+  'timer-start'(v, form) {
+    if (!v.projectId) { markInvalid(form, 'projectId', 'Bitte ein Projekt wählen.'); return; }
+    startTimer(v.projectId, null, v.note || '');
+  },
+
+  'settings-theme'(v) {
+    mutate(doc => { doc.meta.settings.theme = v.theme; });
+    applyTheme();
+    toast('Theme gespeichert.', { type: 'success' });
+  },
+
+  'settings-signals'(v, form) {
+    const stale = parseInt(v.staleDays, 10);
+    const backup = parseInt(v.backupIntervalDays, 10);
+    if (!isFinite(stale) || stale < 1) { markInvalid(form, 'staleDays', 'Bitte eine ganze Zahl größer 0.'); return; }
+    if (!isFinite(backup) || backup < 1) { markInvalid(form, 'backupIntervalDays', 'Bitte eine ganze Zahl größer 0.'); return; }
+    mutate(doc => {
+      doc.meta.settings.staleDays = clampInt(stale, 1, 3650, 21);
+      doc.meta.settings.backupIntervalDays = clampInt(backup, 1, 3650, 7);
+    });
+    bumpData();
+    toast('Einstellungen gespeichert.', { type: 'success' });
+  },
+
+  'wipe-confirm'(v, form) {
+    if (String(v.confirm || '').trim().toUpperCase() !== 'LÖSCHEN') {
+      markInvalid(form, 'confirm', 'Bitte LÖSCHEN eintippen, um zu bestätigen.');
+      return;
+    }
+    const before = snapshot();
+    state.data = emptyDoc();
+    state.data.meta.settings = before.meta.settings;
+    bumpData(); persist(); closeModal(); render();
+    toast('Alle Daten gelöscht.', {
+      type: 'success', actionLabel: 'Rückgängig',
+      action: () => { restoreSnapshot(before); bumpData(); toast('Wiederhergestellt.'); }
+    });
+  }
+};
+
+/* ============================================================================
+   TIMER
+   ========================================================================= */
+function runningMinutes() {
+  const t = D().meta.activeTimer;
+  if (!t) return 0;
+  return Math.max(0, Math.floor((Date.now() - new Date(t.startedAt).getTime()) / 60000));
+}
+function runningSeconds() {
+  const t = D().meta.activeTimer;
+  if (!t) return 0;
+  return Math.max(0, Math.floor((Date.now() - new Date(t.startedAt).getTime()) / 1000));
+}
+function formatClock(seconds) {
+  const h = Math.floor(seconds / 3600), m = Math.floor((seconds % 3600) / 60), s = seconds % 60;
+  return h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+function startTimer(projectId, taskId, note) {
+  const existing = D().meta.activeTimer;
+  if (existing) {
+    modalConfirm('Timer läuft bereits',
+      'Für „' + (getProject(existing.projectId) ? getProject(existing.projectId).name : 'ein Projekt') +
+      '“ läuft seit ' + formatDuration(runningMinutes()) + ' ein Timer. Soll er gestoppt und der neue gestartet werden?',
+      'Stoppen & neu starten', () => { stopTimer(true); startTimer(projectId, taskId, note); });
+    return;
+  }
+  mutate(doc => { doc.meta.activeTimer = { projectId: projectId, taskId: taskId || null, startedAt: nowIso(), note: note || '' }; });
+  closeModal();
+  toast('Timer gestartet.', { type: 'success' });
+}
+function stopTimer(silent) {
+  const t = D().meta.activeTimer;
+  if (!t) return;
+  const minutes = runningMinutes();
+  if (minutes > TIMER_MAX_HOURS * 60 && !silent) {
+    modalConfirm('Sehr langer Timer',
+      'Der Timer läuft seit ' + formatDuration(minutes) + '. Trotzdem als Zeiteintrag speichern? ' +
+      'Du kannst die Dauer danach im Zeit-Screen korrigieren.',
+      'Speichern', () => { closeModal(); commitTimer(t, minutes); });
+    return;
+  }
+  commitTimer(t, minutes);
+}
+function commitTimer(t, minutes) {
+  const saved = Math.max(1, minutes);
+  mutate(doc => {
+    doc.timeEntries.push({
+      id: uid(), projectId: t.projectId, taskId: t.taskId || null,
+      startedAt: t.startedAt, endedAt: nowIso(), durationMinutes: saved,
+      note: t.note || '', source: 'timer'
+    });
+    doc.meta.activeTimer = null;
+  });
+  bumpData();
+  toast('Timer gestoppt — ' + formatDuration(saved) + ' erfasst.', { type: 'success' });
+}
+function renderTimerSlot() {
+  const slot = document.getElementById('timer-slot');
+  const t = D() ? D().meta.activeTimer : null;
+  if (!t) { if (slot.innerHTML) slot.innerHTML = ''; return; }
+  const project = getProject(t.projectId);
+  slot.innerHTML = `<span class="timer-chip" data-action="timer:goto" role="button" tabindex="0" title="Zum Projekt springen">
+    <span aria-hidden="true">⏱</span>
+    <span class="timer-chip__time" data-timer-clock>${esc(formatClock(runningSeconds()))}</span>
+    <span class="timer-chip__name">${esc(project ? project.name : 'Projekt')}</span>
+    <button class="btn btn--sm btn--icon btn--ghost" data-action="timer:stop" aria-label="Timer stoppen" style="min-height:20px;min-width:20px;padding:0">■</button>
+  </span>`;
+}
+function tickTimer() {
+  if (!state.data || !D().meta.activeTimer) return;
+  const clock = document.querySelector('[data-timer-clock]');
+  if (clock) clock.textContent = formatClock(runningSeconds());
+  document.querySelectorAll('[data-timer-live]').forEach(el => { el.textContent = formatDuration(runningMinutes()); });
+}
+
+/* ============================================================================
+   BACKUP / EXPORT / IMPORT
+   ========================================================================= */
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+function exportBackup() {
+  try {
+    const json = JSON.stringify(state.data, null, 2);
+    downloadBlob(new Blob([json], { type: 'application/json' }), 'crm-backup-' + todayKey() + '.json');
+    mutate(doc => { doc.meta.lastBackupAt = nowIso(); });
+    state.ui.backupHintDismissed = false;
+    toast('Backup exportiert.', { type: 'success' });
+  } catch (err) {
+    toast('Export fehlgeschlagen: ' + err.message, { type: 'error' });
+  }
+}
+
+let pendingImport = null;
+
+function openImportModal() {
+  pendingImport = null;
+  openModal({
+    title: 'Backup importieren',
+    body: `<div class="stack">
+      <p class="small muted">Wähle eine zuvor exportierte <span class="mono">crm-backup-*.json</span>. Die Datei wird geprüft und bei Bedarf migriert — erst danach entscheidest du, wie sie angewendet wird.</p>
+      <input class="input" type="file" accept="application/json,.json" data-import-file>
+      <div data-import-result></div>
+    </div>`,
+    foot: `<button class="btn" type="button" data-action="modal:close">Abbrechen</button>`,
+    focus: 'input[type=file]'
+  });
+}
+
+function handleImportFile(file) {
+  const result = document.querySelector('[data-import-result]');
+  const reader = new FileReader();
+  reader.onerror = () => { result.innerHTML = `<div class="banner banner--danger">Datei konnte nicht gelesen werden.</div>`; };
+  reader.onload = () => {
+    let raw;
+    try { raw = JSON.parse(reader.result); }
+    catch (err) {
+      result.innerHTML = `<div class="banner banner--danger"><span>⚠️</span><div class="list__main">
+        Die Datei enthält kein gültiges JSON. Die vorhandenen Daten bleiben unverändert.</div></div>`;
+      return;
+    }
+    const problems = validateDoc(raw);
+    if (problems.length) {
+      result.innerHTML = `<div class="banner banner--danger"><span>⚠️</span><div class="list__main">
+        <strong>Import nicht möglich:</strong><ul>${problems.map(p => `<li>• ${esc(p)}</li>`).join('')}</ul>
+        Die vorhandenen Daten bleiben unverändert.</div></div>`;
+      return;
+    }
+    let doc;
+    try { doc = migrate(raw); }
+    catch (err) {
+      result.innerHTML = `<div class="banner banner--danger"><span>⚠️</span><div class="list__main">${esc(err.message)}</div></div>`;
+      return;
+    }
+    pendingImport = doc;
+    const labels = { clients: 'Kunden', contacts: 'Kontakte', links: 'Links', interactions: 'Interaktionen',
+      followups: 'Wiedervorlagen', projects: 'Projekte', tasks: 'Aufgaben', timeEntries: 'Zeiteinträge' };
+    result.innerHTML = `<div class="banner banner--info"><span>📦</span><div class="list__main">
+        <strong>Backup vom ${esc(doc.meta.updatedAt ? formatDateTime(doc.meta.updatedAt) : 'unbekannt')}</strong>
+        <div class="chip-row" style="margin-top:6px">${ENTITY_ARRAYS.map(k => `<span class="badge">${esc(labels[k])}: ${doc[k].length}</span>`).join('')}</div>
+      </div></div>
+      <div class="chip-row">
+        <button class="btn btn--primary" type="button" data-action="import:apply" data-mode="replace">Ersetzen</button>
+        <button class="btn" type="button" data-action="import:apply" data-mode="merge">Zusammenführen</button>
+      </div>
+      <p class="xsmall muted" style="margin-top:8px"><strong>Ersetzen</strong> verwirft die aktuellen Daten vollständig.
+        <strong>Zusammenführen</strong> übernimmt Datensätze per <span class="mono">id</span> — der eingehende Stand gewinnt.
+        Beides lässt sich in dieser Sitzung rückgängig machen.</p>`;
+  };
+  reader.readAsText(file);
+}
+
+function applyImport(mode) {
+  if (!pendingImport) return;
+  const before = snapshot();
+  const incoming = pendingImport;
+  if (mode === 'replace') {
+    state.data = incoming;
+  } else {
+    const merged = snapshot();
+    ENTITY_ARRAYS.forEach(key => {
+      const index = new Map(merged[key].map(item => [item.id, item]));
+      incoming[key].forEach(item => { index.set(item.id, item); });
+      merged[key] = Array.from(index.values());
+    });
+    const keepTimer = merged.meta.activeTimer;
+    merged.meta = Object.assign({}, merged.meta, incoming.meta, { activeTimer: keepTimer || incoming.meta.activeTimer || null });
+    state.data = migrate(merged);
+  }
+  pendingImport = null;
+  state.ui.undo = { snapshot: before, label: mode === 'replace' ? 'Import (Ersetzen)' : 'Import (Zusammenführen)' };
+  bumpData(); persist(); applyTheme(); closeModal(); render();
+  toast('Backup importiert (' + (mode === 'replace' ? 'ersetzt' : 'zusammengeführt') + ').', {
+    type: 'success', actionLabel: 'Rückgängig', action: undoImport
+  });
+}
+
+function undoImport() {
+  if (!state.ui.undo) return;
+  restoreSnapshot(state.ui.undo.snapshot);
+  state.ui.undo = null;
+  bumpData(); applyTheme(); render();
+  toast('Import rückgängig gemacht.');
+}
+
+/* --- CSV-Export ---------------------------------------------------------- */
+function csvCell(value) {
+  const s = String(value === null || value === undefined ? '' : value);
+  return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function exportCsv() {
+  const range = timeRangeKeys();
+  const entries = entriesInRange();
+  if (!entries.length) { toast('Keine Einträge im gewählten Zeitraum.', { type: 'error' }); return; }
+  const header = ['Datum', 'Kunde', 'Projekt', 'Aufgabe', 'Dauer (h dez.)', 'Dauer (h:mm)', 'Notiz', 'Quelle'];
+  const lines = [header.map(csvCell).join(';')];
+  sortBy(entries, e => e.startedAt).forEach(e => {
+    const p = getProject(e.projectId);
+    const c = p ? getClient(p.clientId) : null;
+    const t = e.taskId ? getTask(e.taskId) : null;
+    lines.push([
+      formatDate(e.startedAt),
+      c ? c.name : '',
+      p ? p.name : '',
+      t ? t.title : '',
+      formatNumber(hoursDecimal(e.durationMinutes), 2),
+      formatDuration(e.durationMinutes).replace(' h', ''),
+      e.note || '',
+      e.source === 'timer' ? 'Timer' : 'manuell'
+    ].map(csvCell).join(';'));
+  });
+  const from = range.from || dateKey(new Date(sortBy(entries, e => e.startedAt)[0].startedAt));
+  const to = range.to || todayKey();
+  /* BOM, damit Excel (de) UTF-8 korrekt erkennt */
+  const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  downloadBlob(blob, 'zeiten-' + from + '_bis_' + to + '.csv');
+  toast(entries.length + ' Einträge exportiert.', { type: 'success' });
+}
+
+/* ============================================================================
+   TOAST
+   ========================================================================= */
+function toast(text, opts) {
+  const o = opts || {};
+  const root = document.getElementById('toast-root');
+  const node = document.createElement('div');
+  node.className = 'toast' + (o.type === 'success' ? ' toast--success' : (o.type === 'error' ? ' toast--error' : ''));
+  const span = document.createElement('span');
+  span.className = 'toast__text';
+  span.textContent = text;
+  node.appendChild(span);
+  if (o.actionLabel && o.action) {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn--sm';
+    btn.textContent = o.actionLabel;
+    btn.addEventListener('click', () => { node.remove(); o.action(); });
+    node.appendChild(btn);
+  }
+  const close = document.createElement('button');
+  close.className = 'btn btn--sm btn--ghost btn--icon';
+  close.setAttribute('aria-label', 'Meldung schließen');
+  close.textContent = '✕';
+  close.addEventListener('click', () => node.remove());
+  node.appendChild(close);
+  root.appendChild(node);
+  const live = document.getElementById(o.type === 'error' ? 'live-assertive' : 'live-polite');
+  live.textContent = text;
+  setTimeout(() => { if (node.parentNode) node.remove(); }, o.actionLabel ? 9000 : 4500);
+}
+
+/* ============================================================================
+   ACTIONS (Event-Delegation)
+   ========================================================================= */
+const ACTIONS = {
+  'modal:close': () => closeModal(),
+  'confirm:run': el => {
+    const fn = CONFIRMS[el.dataset.key];
+    delete CONFIRMS[el.dataset.key];
+    closeModal();
+    if (fn) fn();
+  },
+  'theme:cycle': () => {
+    const order = ['auto', 'light', 'dark'];
+    const next = order[(order.indexOf(settings().theme) + 1) % order.length];
+    mutate(doc => { doc.meta.settings.theme = next; });
+    applyTheme();
+    toast('Theme: ' + { auto: 'Automatisch', light: 'Hell', dark: 'Dunkel' }[next]);
+  },
+  'quickadd:open': el => {
+    if (!D().clients.length) {
+      modalConfirm('Noch kein Kunde', 'Interaktionen brauchen einen Kunden. Jetzt einen anlegen?', 'Kunde anlegen', () => modalClient(null));
+      return;
+    }
+    modalQuickAdd({ clientId: el.dataset.client || '', projectId: el.dataset.project || '' });
+  },
+  'client:new': () => modalClient(null),
+  'client:edit': el => modalClient(getClient(el.dataset.id)),
+  'client:delete': el => {
+    const c = getClient(el.dataset.id);
+    if (!c) return;
+    const counts = [interactionsOf(c.id).length + ' Interaktionen', projectsOf(c.id).length + ' Projekte',
+      contactsOf(c.id).length + ' Kontakte', openFollowups(c.id).length + ' offene Wiedervorlagen'].join(', ');
+    modalConfirm('Kunde löschen', '„' + c.name + '“ und alle abhängigen Daten (' + counts + ') werden gelöscht.',
+      'Endgültig löschen', () => {
+        const before = snapshot();
+        mutate(doc => {
+          const projectIds = doc.projects.filter(p => p.clientId === c.id).map(p => p.id);
+          doc.clients = doc.clients.filter(x => x.id !== c.id);
+          doc.contacts = doc.contacts.filter(x => x.clientId !== c.id);
+          doc.interactions = doc.interactions.filter(x => x.clientId !== c.id);
+          doc.followups = doc.followups.filter(x => x.clientId !== c.id);
+          doc.projects = doc.projects.filter(x => x.clientId !== c.id);
+          doc.tasks = doc.tasks.filter(x => !projectIds.includes(x.projectId));
+          doc.timeEntries = doc.timeEntries.filter(x => !projectIds.includes(x.projectId));
+          doc.links = doc.links.filter(x => !(x.ownerType === 'client' && x.ownerId === c.id) && !(x.ownerType === 'project' && projectIds.includes(x.ownerId)));
+          if (doc.meta.activeTimer && projectIds.includes(doc.meta.activeTimer.projectId)) doc.meta.activeTimer = null;
+        });
+        bumpData();
+        location.hash = '#/clients';
+        toast('Kunde gelöscht.', { actionLabel: 'Rückgängig', action: () => { restoreSnapshot(before); bumpData(); } });
+      }, true);
+  },
+  'contact:new': el => modalContact(null, el.dataset.client),
+  'contact:edit': el => modalContact(getContact(el.dataset.id)),
+  'contact:primary': el => {
+    mutate(doc => {
+      const c = byId(doc.contacts, el.dataset.id);
+      if (!c) return;
+      doc.contacts.forEach(o => { if (o.clientId === c.clientId) o.isPrimary = false; });
+      c.isPrimary = true;
+    });
+    bumpData();
+  },
+  'contact:delete': el => {
+    const c = getContact(el.dataset.id);
+    if (!c) return;
+    modalConfirm('Kontaktperson löschen', '„' + c.name + '“ löschen? Interaktionen bleiben erhalten und verlieren nur die Personen-Zuordnung.',
+      'Löschen', () => {
+        const before = snapshot();
+        mutate(doc => {
+          doc.contacts = doc.contacts.filter(x => x.id !== c.id);
+          doc.interactions.forEach(i => { if (i.contactId === c.id) i.contactId = null; });
+        });
+        bumpData();
+        toast('Kontaktperson gelöscht.', { actionLabel: 'Rückgängig', action: () => { restoreSnapshot(before); bumpData(); } });
+      }, true);
+  },
+  'interaction:edit': el => { const i = byId(D().interactions, el.dataset.id); if (i) modalInteraction(i); },
+  'interaction:delete': el => {
+    const i = byId(D().interactions, el.dataset.id);
+    if (!i) return;
+    modalConfirm('Interaktion löschen', '„' + truncate(i.summary, 60) + '“ wirklich löschen?', 'Löschen', () => {
+      const before = snapshot();
+      mutate(doc => { doc.interactions = doc.interactions.filter(x => x.id !== i.id); });
+      bumpData();
+      toast('Interaktion gelöscht.', { actionLabel: 'Rückgängig', action: () => { restoreSnapshot(before); bumpData(); } });
+    }, true);
+  },
+  'timeline:more': () => { state.ui.timelineLimit += TIMELINE_PAGE; render(); },
+  'followup:new': el => modalFollowup(null, { clientId: el.dataset.client || '', projectId: el.dataset.project || '' }),
+  'followup:edit': el => { const f = byId(D().followups, el.dataset.id); if (f) modalFollowup(f); },
+  'followup:toggle': el => {
+    const id = el.dataset.id;
+    let opened = false;
+    mutate(doc => {
+      const f = byId(doc.followups, id);
+      if (!f) return;
+      opened = f.status === 'done';
+      f.status = opened ? 'open' : 'done';
+      f.completedAt = opened ? null : nowIso();
+    });
+    bumpData();
+    toast(opened ? 'Wiedervorlage wieder geöffnet.' : 'Erledigt.', {
+      type: 'success', actionLabel: 'Rückgängig',
+      action: () => { mutate(doc => { const f = byId(doc.followups, id); if (f) { f.status = opened ? 'done' : 'open'; f.completedAt = opened ? nowIso() : null; } }); bumpData(); }
+    });
+  },
+  'followup:delete': el => {
+    const f = byId(D().followups, el.dataset.id);
+    if (!f) return;
+    modalConfirm('Wiedervorlage löschen', '„' + truncate(f.title, 60) + '“ löschen?', 'Löschen', () => {
+      const before = snapshot();
+      mutate(doc => { doc.followups = doc.followups.filter(x => x.id !== f.id); });
+      bumpData();
+      toast('Wiedervorlage gelöscht.', { actionLabel: 'Rückgängig', action: () => { restoreSnapshot(before); bumpData(); } });
+    }, true);
+  },
+  'link:new': el => modalLink(null, el.dataset.ownerType, el.dataset.ownerId),
+  'link:edit': el => { const l = byId(D().links, el.dataset.id); if (l) modalLink(l, l.ownerType, l.ownerId); },
+  'link:delete': el => {
+    const l = byId(D().links, el.dataset.id);
+    if (!l) return;
+    modalConfirm('Quick-Link löschen', '„' + l.label + '“ löschen?', 'Löschen', () => {
+      mutate(doc => { doc.links = doc.links.filter(x => x.id !== l.id); });
+      bumpData(); toast('Link gelöscht.');
+    }, true);
+  },
+  'link:copy': el => {
+    const l = byId(D().links, el.dataset.id);
+    if (!l) return;
+    const path = l.url.replace(/^file:\/\//, '');
+    const decoded = (() => { try { return decodeURIComponent(path); } catch (e) { return path; } })();
+    copyText(decoded).then(ok => toast(ok ? 'Pfad kopiert — im Finder mit ⌘⇧G einfügen.' : 'Kopieren nicht möglich: ' + decoded,
+      { type: ok ? 'success' : 'error' }));
+  },
+  'project:new': el => modalProject(null, el.dataset.client),
+  'project:edit': el => modalProject(getProject(el.dataset.id)),
+  'project:delete': el => {
+    const p = getProject(el.dataset.id);
+    if (!p) return;
+    modalConfirm('Projekt löschen',
+      '„' + p.name + '“ mit ' + tasksOf(p.id).length + ' Aufgaben und ' + timeEntriesOfProject(p.id).length + ' Zeiteinträgen löschen?',
+      'Endgültig löschen', () => {
+        const before = snapshot();
+        mutate(doc => {
+          doc.projects = doc.projects.filter(x => x.id !== p.id);
+          doc.tasks = doc.tasks.filter(x => x.projectId !== p.id);
+          doc.timeEntries = doc.timeEntries.filter(x => x.projectId !== p.id);
+          doc.links = doc.links.filter(x => !(x.ownerType === 'project' && x.ownerId === p.id));
+          doc.interactions.forEach(i => { if (i.projectId === p.id) i.projectId = null; });
+          doc.followups.forEach(f => { if (f.projectId === p.id) f.projectId = null; });
+          if (doc.meta.activeTimer && doc.meta.activeTimer.projectId === p.id) doc.meta.activeTimer = null;
+        });
+        bumpData();
+        location.hash = '#/projects';
+        toast('Projekt gelöscht.', { actionLabel: 'Rückgängig', action: () => { restoreSnapshot(before); bumpData(); } });
+      }, true);
+  },
+  'task:cycle': el => {
+    mutate(doc => { const t = byId(doc.tasks, el.dataset.id); if (t) t.status = TASK_CYCLE[t.status] || 'todo'; });
+    bumpData();
+  },
+  'task:edit': el => { const t = getTask(el.dataset.id); if (t) modalTask(t); },
+  'task:move': el => {
+    mutate(doc => {
+      const t = byId(doc.tasks, el.dataset.id);
+      if (!t) return;
+      const siblings = sortBy(doc.tasks.filter(x => x.projectId === t.projectId), x => x.order || 0);
+      const index = siblings.findIndex(x => x.id === t.id);
+      const target = el.dataset.dir === 'up' ? index - 1 : index + 1;
+      if (target < 0 || target >= siblings.length) return;
+      const other = siblings[target];
+      const tmp = t.order || 0;
+      t.order = other.order || 0;
+      other.order = tmp;
+    });
+    bumpData();
+  },
+  'task:delete': el => {
+    const t = getTask(el.dataset.id);
+    if (!t) return;
+    modalConfirm('Aufgabe löschen', '„' + truncate(t.title, 60) + '“ löschen? Erfasste Zeiten bleiben am Projekt erhalten.', 'Löschen', () => {
+      const before = snapshot();
+      mutate(doc => {
+        doc.tasks = doc.tasks.filter(x => x.id !== t.id);
+        doc.timeEntries.forEach(e => { if (e.taskId === t.id) e.taskId = null; });
+      });
+      bumpData();
+      toast('Aufgabe gelöscht.', { actionLabel: 'Rückgängig', action: () => { restoreSnapshot(before); bumpData(); } });
+    }, true);
+  },
+  'tasks:toggleDone': () => { state.ui.showDoneTasks = !state.ui.showDoneTasks; render(); },
+  'time:new': el => modalTimeEntry(null, { projectId: el.dataset.project || '' }),
+  'time:edit': el => { const e = byId(D().timeEntries, el.dataset.id); if (e) modalTimeEntry(e); },
+  'time:delete': el => {
+    const e = byId(D().timeEntries, el.dataset.id);
+    if (!e) return;
+    modalConfirm('Zeiteintrag löschen', formatDuration(e.durationMinutes) + ' vom ' + formatDate(e.startedAt) + ' löschen?', 'Löschen', () => {
+      const before = snapshot();
+      mutate(doc => { doc.timeEntries = doc.timeEntries.filter(x => x.id !== e.id); });
+      bumpData();
+      toast('Zeiteintrag gelöscht.', { actionLabel: 'Rückgängig', action: () => { restoreSnapshot(before); bumpData(); } });
+    }, true);
+  },
+  'timer:start': el => startTimer(el.dataset.project, el.dataset.task || null, ''),
+  'timer:stop': () => stopTimer(false),
+  'timer:goto': () => { const t = D().meta.activeTimer; if (t) location.hash = '#/projects/' + t.projectId; },
+  'csv:export': () => exportCsv(),
+  'backup:export': () => exportBackup(),
+  'backup:import': () => openImportModal(),
+  'backup:undo': () => undoImport(),
+  'import:apply': el => applyImport(el.dataset.mode),
+  'hint:dismiss': () => { state.ui.backupHintDismissed = true; render(); },
+  'data:demo': () => {
+    if (!isEmptyDb()) {
+      modalConfirm('Beispieldaten laden', 'Es sind bereits Daten vorhanden. Die Beispieldaten werden hinzugefügt — vorher besser ein Backup exportieren.',
+        'Trotzdem laden', () => { closeModal(); loadDemoData(); });
+      return;
+    }
+    loadDemoData();
+  },
+  'data:wipe': () => {
+    openModal({
+      title: 'Alle Daten löschen',
+      body: `<form data-form="wipe-confirm" id="modal-form">
+        <div class="banner banner--danger"><span>⚠️</span><div class="list__main">
+          Das löscht <strong>alle</strong> Kunden, Interaktionen, Projekte und Zeiten in diesem Browser.
+          Exportiere vorher ein Backup — sonst sind die Daten weg.</div></div>
+        <div class="chip-row" style="margin-bottom:12px"><button class="btn" type="button" data-action="backup:export">⬇ Erst Backup exportieren</button></div>
+        ${field('Zum Bestätigen LÖSCHEN eintippen', `<input class="input" name="confirm" autocomplete="off" placeholder="LÖSCHEN">`)}
+      </form>`,
+      submitLabel: 'Alles löschen',
+      focus: 'input[name=confirm]'
+    });
+  },
+  'shortcuts:help': () => showShortcuts()
+};
+
+function copyText(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    return navigator.clipboard.writeText(text).then(() => true).catch(() => false);
+  }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return Promise.resolve(ok);
+  } catch (e) { return Promise.resolve(false); }
+}
+
+function showShortcuts() {
+  const rows = [
+    ['n', 'Neue Interaktion (Quick-Add)'],
+    ['/', 'Fokus ins Suchfeld'],
+    ['g dann h / k / p / f / z / d', 'Zu Heute / Kunden / Projekte / Follow-ups / Zeit / Daten'],
+    ['t', 'Timer stoppen bzw. Timer-Auswahl öffnen'],
+    ['⌘/Strg + Enter', 'Formular abschicken'],
+    ['Esc', 'Dialog schließen'],
+    ['?', 'Diese Übersicht']
+  ];
+  openModal({
+    title: 'Tastatur-Kürzel',
+    body: `<table class="data"><tbody>${rows.map(r =>
+      `<tr><td class="mono nowrap">${esc(r[0])}</td><td class="wrap">${esc(r[1])}</td></tr>`).join('')}</tbody></table>
+      <p class="xsmall muted" style="margin-top:12px">Kürzel greifen nicht, während du in einem Eingabefeld tippst.</p>`,
+    foot: `<button class="btn btn--primary" type="button" data-action="modal:close">Schließen</button>`,
+    focus: '.btn'
+  });
+}
+
+/* ============================================================================
+   THEME + EVENTS
+   ========================================================================= */
+const darkQuery = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
+
+function applyTheme() {
+  const pref = state.data ? settings().theme : 'auto';
+  const dark = pref === 'dark' || (pref === 'auto' && darkQuery && darkQuery.matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  try { localStorage.setItem(THEME_MIRROR_KEY, pref); } catch (e) { /* egal */ }
+  updateThemeButton();
+}
+function updateThemeButton() {
+  const btn = document.getElementById('theme-btn');
+  if (!btn || !state.data) return;
+  const pref = settings().theme;
+  btn.textContent = pref === 'auto' ? '◐' : (pref === 'dark' ? '🌙' : '☀');
+  btn.title = 'Theme: ' + { auto: 'Automatisch', light: 'Hell', dark: 'Dunkel' }[pref] + ' (klicken zum Wechseln)';
+}
+
+let bindTimer = null;
+function scheduleBindRender() {
+  if (bindTimer) clearTimeout(bindTimer);
+  bindTimer = setTimeout(() => { bindTimer = null; render(); }, 120);
+}
+
+function refreshDependents(form, changed) {
+  const values = formValues(form);
+  if (changed.name === 'clientId') {
+    const contactSelect = form.querySelector('[data-contact-select]');
+    if (contactSelect) contactSelect.innerHTML = contactOptionsFor(values.clientId, '');
+    const projectSelect = form.querySelector('[data-project-select]');
+    if (projectSelect) projectSelect.innerHTML = projectOptions(values.clientId || null, '', true);
+  }
+  if (changed.name === 'projectId') {
+    const taskSelect = form.querySelector('[data-task-select]');
+    if (taskSelect) taskSelect.innerHTML = taskOptionsFor(values.projectId, '');
+  }
+}
+
+function bindEvents() {
+  /* --- Klicks: eine Delegation fuer die ganze App --------------------- */
+  document.addEventListener('click', ev => {
+    const overlay = ev.target.closest('[data-overlay]');
+    if (overlay && ev.target === overlay) { closeModal(); return; }
+
+    const quick = ev.target.closest('[data-quick-due]');
+    if (quick) {
+      ev.preventDefault();
+      const form = quick.closest('form');
+      const targetName = quick.dataset.target || 'followupDue';
+      const input = form && form.querySelector('[name="' + targetName + '"]');
+      if (input) {
+        input.value = addDaysKey(todayKey(), Number(quick.dataset.quickDue));
+        form.querySelectorAll('[data-quick-due]').forEach(c => c.setAttribute('aria-pressed', c === quick ? 'true' : 'false'));
+        const toggle = form.querySelector('[data-followup-toggle]');
+        if (toggle && !toggle.checked) { toggle.checked = true; toggle.dispatchEvent(new Event('change', { bubbles: true })); }
+      }
+      return;
+    }
+
+    const el = ev.target.closest('[data-action]');
+    if (!el) return;
+    const fn = ACTIONS[el.dataset.action];
+    if (!fn) return;
+    ev.preventDefault();
+    fn(el, ev);
+  });
+
+  /* Timer-Chip ist ein span mit role=button -> Tastatur nachruesten */
+  document.addEventListener('keydown', ev => {
+    if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.matches('[role=button][data-action]')) {
+      ev.preventDefault();
+      const fn = ACTIONS[ev.target.dataset.action];
+      if (fn) fn(ev.target, ev);
+    }
+  });
+
+  /* --- Formulare ------------------------------------------------------ */
+  document.addEventListener('submit', ev => {
+    const form = ev.target.closest('[data-form]');
+    if (!form) return;
+    ev.preventDefault();
+    clearErrors(form);
+    const handler = FORMS[form.dataset.form];
+    if (handler) handler(formValues(form), form);
+  });
+
+  /* --- Eingaben: Filter, abhaengige Selects, Live-Vorschauen ---------- */
+  const onFieldChange = ev => {
+    const el = ev.target;
+    if (el.dataset && el.dataset.bind) {
+      state.ui[el.dataset.bind] = el.value;
+      if (el.tagName === 'SELECT' || el.type === 'date') render(); else scheduleBindRender();
+      return;
+    }
+    const form = el.closest && el.closest('form');
+    if (!form) return;
+    if (el.hasAttribute && el.hasAttribute('data-dependent')) refreshDependents(form, el);
+    if (el.hasAttribute && el.hasAttribute('data-followup-toggle')) {
+      const fields = form.querySelector('[data-followup-fields]');
+      if (fields) {
+        fields.hidden = !el.checked;
+        if (el.checked) { const t = form.querySelector('[name=followupTitle]'); if (t) t.focus(); }
+      }
+    }
+    if (el.name === 'duration') {
+      const preview = form.querySelector('[data-duration-preview]');
+      if (preview) {
+        const minutes = parseDuration(el.value);
+        preview.textContent = el.value
+          ? (minutes === null ? 'Dauer nicht erkannt — z. B. 1:30, 90m, 1,5h' : '= ' + minutes + ' Minuten (' + formatDuration(minutes) + ')')
+          : '';
+      }
+    }
+  };
+  document.addEventListener('input', onFieldChange);
+  document.addEventListener('change', onFieldChange);
+  document.addEventListener('change', ev => {
+    const file = ev.target.closest('[data-import-file]');
+    if (file && file.files && file.files[0]) handleImportFile(file.files[0]);
+  });
+
+  /* --- Tastatur ------------------------------------------------------- */
+  let gPending = false;
+  document.addEventListener('keydown', ev => {
+    if (ev.key === 'Escape') {
+      if (state.ui.modal) { ev.preventDefault(); closeModal(); }
+      return;
+    }
+    if (ev.key === 'Tab' && state.ui.modal) { trapFocus(ev); return; }
+    if ((ev.metaKey || ev.ctrlKey) && ev.key === 'Enter') {
+      const form = (ev.target.closest && ev.target.closest('form')) || document.getElementById('modal-form');
+      if (form) { ev.preventDefault(); form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true })); }
+      return;
+    }
+    const target = ev.target;
+    const typing = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable);
+    if (typing || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+    if (state.ui.modal) return;
+
+    if (gPending) {
+      gPending = false;
+      const item = NAV_ITEMS.find(n => n.key === ev.key.toLowerCase());
+      if (item) { ev.preventDefault(); location.hash = item.hash; }
+      return;
+    }
+    switch (ev.key) {
+      case 'g': gPending = true; setTimeout(() => { gPending = false; }, 1200); break;
+      case 'n': ev.preventDefault(); ACTIONS['quickadd:open']({ dataset: {} }); break;
+      case 't':
+        ev.preventDefault();
+        if (D().meta.activeTimer) stopTimer(false); else location.hash = '#/time';
+        break;
+      case '/': {
+        const search = document.querySelector('input[type=search]');
+        if (search) { ev.preventDefault(); search.focus(); search.select(); }
+        break;
+      }
+      case '?': ev.preventDefault(); showShortcuts(); break;
+    }
+  });
+
+  /* --- Routing & Lebenszyklus ---------------------------------------- */
+  window.addEventListener('hashchange', applyRoute);
+  window.addEventListener('pagehide', flushPersist);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushPersist(); });
+  if (darkQuery && darkQuery.addEventListener) darkQuery.addEventListener('change', () => { if (settings().theme === 'auto') applyTheme(); });
+  setInterval(tickTimer, 1000);
+}
+
+/* --- Multi-Tab-Schutz ---------------------------------------------------- */
+function setupBroadcast() {
+  if (!('BroadcastChannel' in window)) return;
+  try { bc = new BroadcastChannel('freelancer-crm'); }
+  catch (e) { bc = null; return; }
+  bc.onmessage = ev => {
+    if (!ev.data || ev.data.type !== 'saved' || ev.data.tab === TAB_ID) return;
+    if (state.ui.modal) {
+      /* Nicht wegrendern, solange ein Formular offen ist - sonst waeren Eingaben weg. */
+      if (!state.ui.externalChangePending) {
+        state.ui.externalChangePending = true;
+        toast('In einem anderen Tab geändert — wird nach dem Schließen dieses Dialogs geladen.');
+      }
+      return;
+    }
+    reloadFromDb();
+  };
+}
+
+function reloadFromDb() {
+  dbGet().then(raw => {
+    if (!raw) return;
+    state.data = migrate(raw);
+    bumpData(); applyTheme(); render();
+    toast('In einem anderen Tab geändert — neu geladen.');
+  }).catch(() => { /* still ignorieren, last-write-wins */ });
+}
+
+/* ============================================================================
+   DEMO-DATEN
+   Alle Datumsangaben relativ zu heute -> "überfällig"/"still" stimmt immer.
+   ========================================================================= */
+function loadDemoData() {
+  const before = snapshot();
+  const isoDaysAgo = (days, hour, minute) => {
+    const d = new Date();
+    d.setDate(d.getDate() - days);
+    d.setHours(hour === undefined ? 10 : hour, minute === undefined ? 0 : minute, 0, 0);
+    return d.toISOString();
+  };
+  const c = {
+    nord: uid(), lumen: uid(), gruber: uid(), stadt: uid(), pixel: uid(), alt: uid()
+  };
+  const p = { shop: uid(), portal: uid(), app: uid(), relaunch: uid() };
+  const t = {};
+  const clients = [
+    { id: c.nord, name: 'Nordlicht GmbH', company: 'Nordlicht GmbH', email: 'office@nordlicht.example', phone: '+43 1 2345678', status: 'active', tags: ['Retainer', 'E-Commerce'], notes: 'Zahlt zuverlässig, mag kurze Status-Mails am Freitag.' },
+    { id: c.lumen, name: 'Lumen Analytics', company: 'Lumen Analytics OG', email: 'hallo@lumen.example', phone: '+43 660 1122334', status: 'active', tags: ['SaaS'], notes: '' },
+    { id: c.gruber, name: 'Dr. Gruber', company: 'Ordination Dr. Gruber', email: 'praxis@gruber.example', phone: '+43 512 998877', status: 'active', tags: ['Klein', 'Wartung'], notes: 'Erreichbar nur Di und Do vormittags.' },
+    { id: c.stadt, name: 'Stadtwerke Innsbruck', company: 'Stadtwerke Innsbruck', email: 'it@stadtwerke.example', phone: '', status: 'lead', tags: ['Ausschreibung'], notes: 'Angebot liegt seit einer Woche bei der Vergabestelle.' },
+    { id: c.pixel, name: 'Pixelweit', company: 'Pixelweit Studio', email: 'team@pixelweit.example', phone: '', status: 'paused', tags: ['Agentur'], notes: 'Pausiert bis zum nächsten Quartal.' },
+    { id: c.alt, name: 'Altmann Consulting', company: 'Altmann Consulting e.U.', email: 'r.altmann@example.com', phone: '', status: 'active', tags: [], notes: 'Seit dem Projektende still.' }
+  ];
+  const contacts = [
+    { id: uid(), clientId: c.nord, name: 'Marek Novak', role: 'Geschäftsführung', email: 'novak@nordlicht.example', phone: '+43 1 2345678', isPrimary: true },
+    { id: uid(), clientId: c.nord, name: 'Sarah Berger', role: 'Marketing', email: 'berger@nordlicht.example', phone: '', isPrimary: false },
+    { id: uid(), clientId: c.lumen, name: 'Jonas Weiß', role: 'CTO', email: 'weiss@lumen.example', phone: '', isPrimary: true },
+    { id: uid(), clientId: c.gruber, name: 'Dr. Elisabeth Gruber', role: 'Inhaberin', email: 'praxis@gruber.example', phone: '+43 512 998877', isPrimary: true },
+    { id: uid(), clientId: c.stadt, name: 'Ing. Peter Haas', role: 'Einkauf', email: 'haas@stadtwerke.example', phone: '', isPrimary: true }
+  ];
+  const projects = [
+    { id: p.shop, clientId: c.nord, name: 'Shop-Relaunch', description: 'Neuer Checkout, Zahlungsanbindung, Performance.', status: 'active', color: PROJECT_COLORS[0] },
+    { id: p.portal, clientId: c.lumen, name: 'Kundenportal', description: 'Self-Service-Portal mit SSO.', status: 'active', color: PROJECT_COLORS[1] },
+    { id: p.app, clientId: c.gruber, name: 'Terminbuchung', description: 'Kleine Buchungsseite inkl. Wartung.', status: 'onhold', color: PROJECT_COLORS[2] },
+    { id: p.relaunch, clientId: c.alt, name: 'Website-Relaunch', description: 'Abgeschlossen im letzten Quartal.', status: 'done', color: PROJECT_COLORS[3] }
+  ];
+  const taskDefs = [
+    [p.shop, 'Checkout-Flow finalisieren', 'doing', 480],
+    [p.shop, 'Zahlungsanbindung testen', 'todo', 240],
+    [p.shop, 'Lighthouse-Score > 90', 'todo', 180],
+    [p.shop, 'Staging aufsetzen', 'done', 120],
+    [p.portal, 'SSO-Anbindung', 'doing', 600],
+    [p.portal, 'Rollen & Rechte', 'todo', 300],
+    [p.portal, 'Design-Abnahme', 'done', 90],
+    [p.app, 'Kalender-Sync prüfen', 'todo', 120],
+    [p.relaunch, 'Übergabe-Doku', 'done', 60]
+  ];
+  const tasks = taskDefs.map((d, i) => {
+    const id = uid();
+    t[d[1]] = id;
+    return { id: id, projectId: d[0], title: d[1], status: d[2], estimateMinutes: d[3], order: i + 1 };
+  });
+
+  const interactionDefs = [
+    [c.nord, p.shop, 'call', 'out', 1, 'Wochen-Jour-fixe: Checkout-Flow abgestimmt', 'Marek will den Gastcheckout doch behalten. Zahlungsanbindung nächste Woche.'],
+    [c.nord, p.shop, 'email', 'in', 2, 'Freigabe für neues Checkout-Design', ''],
+    [c.nord, null, 'meeting', 'out', 9, 'Quartalsgespräch vor Ort', 'Budget für Q3 steht, Retainer wird verlängert.'],
+    [c.nord, p.shop, 'message', 'in', 14, 'Kurze Rückfrage zu Versandkosten', ''],
+    [c.nord, p.shop, 'email', 'out', 21, 'Angebot Performance-Optimierung geschickt', ''],
+    [c.nord, null, 'note', 'internal', 30, 'Notiz: Rechnung März beglichen', ''],
+    [c.lumen, p.portal, 'meeting', 'out', 3, 'Sprint-Review Kundenportal', 'SSO-Anbindung dauert länger als geschätzt — Keycloak-Realm fehlt noch.'],
+    [c.lumen, p.portal, 'call', 'in', 5, 'Jonas fragt nach Zeitplan', ''],
+    [c.lumen, p.portal, 'email', 'out', 11, 'Zwischenstand + Screenshots', ''],
+    [c.lumen, null, 'email', 'in', 18, 'Vertragsverlängerung bestätigt', ''],
+    [c.lumen, p.portal, 'note', 'internal', 25, 'Notiz: Testsystem-Zugang liegt im Passwortmanager', ''],
+    [c.gruber, p.app, 'call', 'in', 4, 'Frau Gruber meldet Fehler im Buchungsformular', 'Doppelbuchung möglich, wenn zwei Tabs offen sind.'],
+    [c.gruber, p.app, 'email', 'out', 4, 'Fehler bestätigt, Fix bis Freitag', ''],
+    [c.gruber, null, 'email', 'out', 20, 'Wartungsrechnung Q2', ''],
+    [c.gruber, p.app, 'note', 'internal', 40, 'Notiz: Hosting läuft bis Jahresende', ''],
+    [c.stadt, null, 'meeting', 'out', 8, 'Erstgespräch zur Ausschreibung', 'Sehr formaler Prozess, Vergabe frühestens in 6 Wochen.'],
+    [c.stadt, null, 'email', 'out', 7, 'Angebot übermittelt', 'Angebotssumme 24.500 EUR netto.'],
+    [c.stadt, null, 'call', 'in', 6, 'Rückfrage zu Wartungspauschale', ''],
+    [c.pixel, null, 'email', 'in', 45, 'Pausieren die Zusammenarbeit bis Q4', ''],
+    [c.pixel, null, 'call', 'out', 60, 'Abschlussgespräch letztes Projekt', ''],
+    [c.alt, p.relaunch, 'email', 'out', 38, 'Projektabschluss & Übergabe', 'Alles übergeben, Rechnung gestellt.'],
+    [c.alt, p.relaunch, 'meeting', 'out', 44, 'Abnahme Website-Relaunch', ''],
+    [c.alt, null, 'call', 'out', 52, 'Zwischenstand Relaunch', ''],
+    [c.nord, p.shop, 'note', 'internal', 0, 'Notiz: Deploy-Fenster am Donnerstag reserviert', ''],
+    [c.lumen, p.portal, 'call', 'out', 0, 'Kurzes Sync zu SSO-Blocker', '']
+  ];
+  const interactions = interactionDefs.map(d => ({
+    id: uid(), clientId: d[0], contactId: null, projectId: d[1], type: d[2], direction: d[3],
+    occurredAt: isoDaysAgo(d[4], 9 + (d[4] % 8), (d[4] * 7) % 60), summary: d[5], body: d[6]
+  }));
+
+  const followups = [
+    { id: uid(), clientId: c.stadt, projectId: null, title: 'Angebot Stadtwerke nachfassen', notes: 'Bei Ing. Haas anrufen, Vergabestand erfragen.', dueDate: addDaysKey(todayKey(), -4), status: 'open', sourceInteractionId: null, completedAt: null },
+    { id: uid(), clientId: c.gruber, projectId: p.app, title: 'Fix für Doppelbuchung ausliefern', notes: '', dueDate: addDaysKey(todayKey(), -1), status: 'open', sourceInteractionId: null, completedAt: null },
+    { id: uid(), clientId: c.nord, projectId: p.shop, title: 'Zahlungsanbindung mit Marek testen', notes: '', dueDate: todayKey(), status: 'open', sourceInteractionId: null, completedAt: null },
+    { id: uid(), clientId: c.lumen, projectId: p.portal, title: 'Keycloak-Realm mit Jonas klären', notes: 'Ohne Realm kein SSO-Test.', dueDate: addDaysKey(todayKey(), 2), status: 'open', sourceInteractionId: null, completedAt: null },
+    { id: uid(), clientId: c.nord, projectId: null, title: 'Retainer-Verlängerung schriftlich bestätigen', notes: '', dueDate: addDaysKey(todayKey(), 9), status: 'open', sourceInteractionId: null, completedAt: null },
+    { id: uid(), clientId: c.alt, projectId: null, title: 'Nach Weiterempfehlung fragen', notes: '', dueDate: addDaysKey(todayKey(), 21), status: 'open', sourceInteractionId: null, completedAt: null },
+    { id: uid(), clientId: c.gruber, projectId: null, title: 'Wartungsrechnung Q2 stellen', notes: '', dueDate: addDaysKey(todayKey(), -20), status: 'done', sourceInteractionId: null, completedAt: isoDaysAgo(20) },
+    { id: uid(), clientId: c.lumen, projectId: p.portal, title: 'Screenshots für Zwischenstand', notes: '', dueDate: addDaysKey(todayKey(), -11), status: 'done', sourceInteractionId: null, completedAt: isoDaysAgo(11) }
+  ];
+
+  const timeDefs = [
+    [p.shop, 'Checkout-Flow finalisieren', 0, 155, 'Gastcheckout umgebaut'],
+    [p.shop, 'Checkout-Flow finalisieren', 1, 240, 'Formular-Validierung'],
+    [p.shop, null, 1, 45, 'Jour fixe'],
+    [p.shop, 'Zahlungsanbindung testen', 2, 190, 'Sandbox-Keys eingerichtet'],
+    [p.portal, 'SSO-Anbindung', 0, 120, 'Keycloak-Recherche'],
+    [p.portal, 'SSO-Anbindung', 2, 300, 'Realm-Konfiguration'],
+    [p.portal, 'Rollen & Rechte', 3, 90, 'Datenmodell skizziert'],
+    [p.shop, 'Lighthouse-Score > 90', 4, 135, 'Bilder optimiert'],
+    [p.portal, 'SSO-Anbindung', 5, 210, 'Login-Flow gebaut'],
+    [p.app, 'Kalender-Sync prüfen', 6, 60, 'Fehleranalyse Doppelbuchung'],
+    [p.shop, 'Checkout-Flow finalisieren', 7, 165, ''],
+    [p.portal, 'Design-Abnahme', 8, 75, 'Abnahmerunde'],
+    [p.shop, 'Staging aufsetzen', 9, 120, ''],
+    [p.portal, 'SSO-Anbindung', 10, 260, ''],
+    [p.app, null, 11, 55, 'Support-Anfrage'],
+    [p.shop, null, 12, 95, 'Deployment-Vorbereitung'],
+    [p.portal, 'Rollen & Rechte', 13, 180, ''],
+    [p.shop, 'Zahlungsanbindung testen', 14, 145, '']
+  ];
+  const timeEntries = timeDefs.map(d => {
+    const start = new Date();
+    start.setDate(start.getDate() - d[2]);
+    start.setHours(9, 30, 0, 0);
+    return {
+      id: uid(), projectId: d[0], taskId: d[1] ? t[d[1]] : null,
+      startedAt: start.toISOString(), endedAt: new Date(start.getTime() + d[3] * 60000).toISOString(),
+      durationMinutes: d[3], note: d[4], source: d[2] % 3 === 0 ? 'timer' : 'manual'
+    };
+  });
+
+  const links = [
+    { id: uid(), ownerType: 'client', ownerId: c.nord, label: 'Jira-Board', url: 'https://nordlicht.atlassian.net/browse/SHOP', kind: 'ticket' },
+    { id: uid(), ownerType: 'client', ownerId: c.nord, label: 'Kundennotiz (iCloud)', url: 'https://www.icloud.com/notes/0abcdef123456789', kind: 'note' },
+    { id: uid(), ownerType: 'project', ownerId: p.shop, label: 'GitHub-Repo', url: 'https://github.com/beispiel/nordlicht-shop', kind: 'repo' },
+    { id: uid(), ownerType: 'project', ownerId: p.shop, label: 'Design in Figma', url: 'https://www.figma.com/file/abc123/Shop-Relaunch', kind: 'design' },
+    { id: uid(), ownerType: 'project', ownerId: p.portal, label: 'Confluence-Space', url: 'https://lumen.atlassian.net/wiki/spaces/PORTAL', kind: 'docs' },
+    { id: uid(), ownerType: 'project', ownerId: p.portal, label: 'Projektordner', url: 'file:///Users/freelancer/Projekte/Lumen-Portal', kind: 'folder' },
+    { id: uid(), ownerType: 'client', ownerId: c.gruber, label: 'Praxis-Website', url: 'https://ordination-gruber.example', kind: 'web' }
+  ];
+
+  mutate(doc => {
+    doc.clients.push(...clients);
+    doc.contacts.push(...contacts);
+    doc.projects.push(...projects);
+    doc.tasks.push(...tasks);
+    doc.interactions.push(...interactions);
+    doc.followups.push(...followups);
+    doc.timeEntries.push(...timeEntries);
+    doc.links.push(...links);
+  });
+  bumpData();
+  closeModal();
+  if (state.route.name !== 'today') location.hash = '#/today'; else render();
+  toast('Beispieldaten geladen — ' + clients.length + ' Kunden, ' + interactions.length + ' Interaktionen.', {
+    type: 'success', actionLabel: 'Rückgängig', action: () => { restoreSnapshot(before); bumpData(); }
+  });
+}
+
+/* ============================================================================
+   BOOT
+   ========================================================================= */
+async function boot() {
+  try {
+    dbHandle = await openDb();
+  } catch (err) {
+    dbHandle = null;
+    setStorageWarning('Kein dauerhafter Speicher verfügbar (' + (err && err.message ? err.message : 'IndexedDB blockiert') +
+      '). Die App funktioniert, aber Änderungen gehen beim Schließen verloren. Bitte über einen http-Server öffnen und den privaten Modus meiden.');
+  }
+  let raw = null;
+  try { raw = await dbGet(); }
+  catch (err) { setStorageWarning('Daten konnten nicht geladen werden: ' + err.message); }
+
+  try {
+    state.data = migrate(raw);
+  } catch (err) {
+    state.data = emptyDoc();
+    setStorageWarning('Die gespeicherten Daten konnten nicht geladen werden: ' + err.message);
+  }
+  bumpData();
+  applyTheme();
+  setupBroadcast();
+  bindEvents();
+  state.ui.booted = true;
+  applyRoute();
+}
+
+boot();
+</script>
+</body>
+</html>
